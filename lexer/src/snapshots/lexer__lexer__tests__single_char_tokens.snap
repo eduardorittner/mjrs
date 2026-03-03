@@ -1,0 +1,90 @@
+---
+source: lexer/src/lexer.rs
+expression: tokens
+---
+[
+    Token {
+        kind: Plus,
+        range: (
+            0,
+            1,
+        ),
+    },
+    Token {
+        kind: Minus,
+        range: (
+            1,
+            2,
+        ),
+    },
+    Token {
+        kind: Star,
+        range: (
+            2,
+            3,
+        ),
+    },
+    Token {
+        kind: Slash,
+        range: (
+            3,
+            4,
+        ),
+    },
+    Token {
+        kind: LeftParen,
+        range: (
+            4,
+            5,
+        ),
+    },
+    Token {
+        kind: RightParen,
+        range: (
+            5,
+            6,
+        ),
+    },
+    Token {
+        kind: LeftBrace,
+        range: (
+            6,
+            7,
+        ),
+    },
+    Token {
+        kind: RightBrace,
+        range: (
+            7,
+            8,
+        ),
+    },
+    Token {
+        kind: LeftBracket,
+        range: (
+            8,
+            9,
+        ),
+    },
+    Token {
+        kind: RightBracket,
+        range: (
+            9,
+            10,
+        ),
+    },
+    Token {
+        kind: Comma,
+        range: (
+            10,
+            11,
+        ),
+    },
+    Token {
+        kind: Semicolon,
+        range: (
+            11,
+            12,
+        ),
+    },
+]
