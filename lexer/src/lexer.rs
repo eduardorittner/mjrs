@@ -121,7 +121,7 @@ impl<'src> Lexer<'src> {
             "static" => self.make_token(Static, len),
             "this" => self.make_token(This, len),
             "print" => self.make_token(Print, len),
-            "string" => self.make_token(String, len),
+            "String" => self.make_token(String, len),
             "int" => self.make_token(Int, len),
             "boolean" => self.make_token(Boolean, len),
             "void" => self.make_token(Void, len),
