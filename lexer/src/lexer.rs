@@ -159,7 +159,21 @@ impl<'src> Lexer<'src> {
         self.make_token(StringLiteral, len + 2)
     }
 
-    fn skip_whitespace(&mut self) {
+    fn lex_char(&mut self) -> Option<TokenResult> {
+        let mut rest = self.rest().chars();
+        assert!(rest.next().is_some_and(|c| c == '\''));
+
+        rest.next().expect("Expected char after \"'\"");
+        assert_eq!(
+            '\'',
+            rest.next().expect("Expected \"'\" after char literal")
+        );
+
+        self.make_token(CharLiteral, 3)
+    }
+
+    /// Skips all whitespace. Returns `true` if any characters were consumed.
+    fn skip_whitespace(&mut self) -> bool {
         let rest = self.rest();
         if let Some(skipped) = rest.find(|c: char| !c.is_whitespace()) {
             // Count the number of newlines inside the skipped whitespace
@@ -178,10 +192,14 @@ impl<'src> Lexer<'src> {
                 None => self.line_offset,
             };
             self.idx += skipped;
+            true
+        } else {
+            false
         }
     }
 
-    fn skip_comments(&mut self) {
+    /// Skips comments. Returns `true` if any characters were consumed.
+    fn skip_comments(&mut self) -> bool {
         let rest = self.rest();
         if rest.starts_with("//") {
             if let Some(len) = rest.find('\n') {
@@ -191,12 +209,27 @@ impl<'src> Lexer<'src> {
             } else {
                 self.idx = self.input.len();
             }
+            true
         } else if rest.starts_with("/*") {
             if let Some(len) = rest.find("*/") {
                 self.idx += len + 1;
                 // TODO: update line info here
             } else {
                 self.idx = self.input.len();
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    fn skip_whitespace_and_comments(&mut self) {
+        loop {
+            self.skip_whitespace();
+            if !self.skip_comments() {
+                // If we skipped comments we need to call `skip_whitespace` again since there may
+                // be whitespace after the comment we just skipped
+                break;
             }
         }
     }
@@ -211,11 +244,7 @@ impl<'src> Iterator for Lexer<'src> {
             return None;
         }
 
-        // Skip whitespace
-        // Note: since `self.rest()` borrows from `self.idx`, we can't update `self.idx` while a
-        // borrow to `self.rest()` is still active, so we end up having to call `self.rest()` twice
-        self.skip_whitespace();
-        self.skip_comments();
+        self.skip_whitespace_and_comments();
 
         let mut rest = self.rest().chars().peekable();
 
@@ -244,6 +273,7 @@ impl<'src> Iterator for Lexer<'src> {
                 // Int literals
                 c if c.is_ascii_digit() => self.lex_int_literal(),
                 '"' => self.lex_string(),
+                '\'' => self.lex_char(),
                 // TODO: make this return an error?
                 _ => self.make_err(),
             }

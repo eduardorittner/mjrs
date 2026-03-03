@@ -124,7 +124,8 @@ pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
                 &mut result,
                 "LexToken({},'{}',{},{})",
                 tok.kind,
-                &src[tok.range()],
+                // escape this
+                &escape_string(&src[tok.range()]),
                 tok.line,
                 tok.range.0
             )
@@ -134,7 +135,9 @@ pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
             writeln!(
                 &mut result,
                 "Lexical error: Illegal character '{}' at {}:{}",
-                e.c, e.line, e.offset
+                &escape_string(&String::from(e.c)),
+                e.line,
+                e.offset
             )
             .unwrap();
         }
@@ -143,6 +146,27 @@ pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
     tokens.iter().for_each(|t| print_token(*t));
 
     result
+}
+
+/// Escapes specific characters inside a string
+///
+/// Note: Only ascii (1 byte wide) characters are escaped, all others are kept as-is.
+pub fn escape_string(str: &str) -> String {
+    let mut string = str.to_string();
+    let bytes = unsafe { string.as_mut_vec() };
+
+    let mut idx = 0;
+
+    while idx < bytes.len() {
+        if matches!(bytes[idx] as char, '\'' | '\\') {
+            bytes.insert(idx, '\\' as u8);
+            idx += 1;
+        }
+        idx += 1;
+    }
+
+    println!("{string}");
+    string
 }
 
 impl Display for TokenKind {
@@ -197,7 +221,7 @@ impl Display for TokenKind {
                 TokenKind::False => "FALSE",
                 TokenKind::True => "TRUE",
                 TokenKind::IntLiteral => "INT_LITERAL",
-                TokenKind::CharLiteral => "CHARLITERAL",
+                TokenKind::CharLiteral => "CHAR_LITERAL",
                 TokenKind::StringLiteral => "STRING_LITERAL",
             }
         )
