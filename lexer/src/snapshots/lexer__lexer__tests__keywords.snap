@@ -1,0 +1,104 @@
+---
+source: lexer/src/lexer.rs
+expression: tokens
+---
+[
+    Token {
+        kind: If,
+        range: (
+            0,
+            2,
+        ),
+    },
+    Token {
+        kind: Else,
+        range: (
+            3,
+            7,
+        ),
+    },
+    Token {
+        kind: While,
+        range: (
+            8,
+            13,
+        ),
+    },
+    Token {
+        kind: Class,
+        range: (
+            14,
+            19,
+        ),
+    },
+    Token {
+        kind: New,
+        range: (
+            20,
+            23,
+        ),
+    },
+    Token {
+        kind: Return,
+        range: (
+            24,
+            30,
+        ),
+    },
+    Token {
+        kind: Public,
+        range: (
+            31,
+            37,
+        ),
+    },
+    Token {
+        kind: Private,
+        range: (
+            38,
+            45,
+        ),
+    },
+    Token {
+        kind: This,
+        range: (
+            46,
+            50,
+        ),
+    },
+    Token {
+        kind: Int,
+        range: (
+            51,
+            54,
+        ),
+    },
+    Token {
+        kind: Boolean,
+        range: (
+            55,
+            62,
+        ),
+    },
+    Token {
+        kind: Void,
+        range: (
+            63,
+            67,
+        ),
+    },
+    Token {
+        kind: False,
+        range: (
+            68,
+            73,
+        ),
+    },
+    Token {
+        kind: True,
+        range: (
+            74,
+            78,
+        ),
+    },
+]
