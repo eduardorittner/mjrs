@@ -121,6 +121,7 @@ impl<'src> Lexer<'src> {
             "static" => self.make_token(Static, len),
             "this" => self.make_token(This, len),
             "print" => self.make_token(Print, len),
+            "assert" => self.make_token(Assert, len),
             "String" => self.make_token(String, len),
             "int" => self.make_token(Int, len),
             "boolean" => self.make_token(Boolean, len),
@@ -144,16 +145,21 @@ impl<'src> Lexer<'src> {
 
         self.make_token(IntLiteral, len)
     }
-}
 
-impl<'src> Iterator for Lexer<'src> {
-    // TODO: create alias for Result<Token, TokenError>
-    type Item = TokenResult;
+    fn lex_string(&mut self) -> Option<TokenResult> {
+        let mut rest = self.rest().chars();
+        assert!(rest.next().is_some_and(|c| c == '"'));
 
-    fn next(&mut self) -> Option<Self::Item> {
-        // Skip whitespace
-        // Note: since `self.rest()` borrows from `self.idx`, we can't update `self.idx` while a
-        // borrow to `self.rest()` is still active, so we end up having to call `self.rest()` twice
+        let len = if let Some(len) = rest.position(|c| c == '"') {
+            len
+        } else {
+            self.rest().len()
+        };
+
+        self.make_token(StringLiteral, len + 2)
+    }
+
+    fn skip_whitespace(&mut self) {
         let rest = self.rest();
         if let Some(skipped) = rest.find(|c: char| !c.is_whitespace()) {
             // Count the number of newlines inside the skipped whitespace
@@ -173,6 +179,43 @@ impl<'src> Iterator for Lexer<'src> {
             };
             self.idx += skipped;
         }
+    }
+
+    fn skip_comments(&mut self) {
+        let rest = self.rest();
+        if rest.starts_with("//") {
+            if let Some(len) = rest.find('\n') {
+                self.idx += len;
+                self.line += 1;
+                self.line_offset = self.idx;
+            } else {
+                self.idx = self.input.len();
+            }
+        } else if rest.starts_with("/*") {
+            if let Some(len) = rest.find("*/") {
+                self.idx += len + 1;
+                // TODO: update line info here
+            } else {
+                self.idx = self.input.len();
+            }
+        }
+    }
+}
+
+impl<'src> Iterator for Lexer<'src> {
+    // TODO: create alias for Result<Token, TokenError>
+    type Item = TokenResult;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx >= self.input.len() {
+            return None;
+        }
+
+        // Skip whitespace
+        // Note: since `self.rest()` borrows from `self.idx`, we can't update `self.idx` while a
+        // borrow to `self.rest()` is still active, so we end up having to call `self.rest()` twice
+        self.skip_whitespace();
+        self.skip_comments();
 
         let mut rest = self.rest().chars().peekable();
 
@@ -182,6 +225,7 @@ impl<'src> Iterator for Lexer<'src> {
                 '+' => self.make_token(Plus, 1),
                 '-' => self.make_token(Minus, 1),
                 '*' => self.make_token(Star, 1),
+                '%' => self.make_token(Mod, 1),
                 // TODO: handle comments
                 '/' => self.make_token(Slash, 1),
                 '(' => self.make_token(LeftParen, 1),
@@ -199,6 +243,7 @@ impl<'src> Iterator for Lexer<'src> {
                 c if c.is_ascii_alphabetic() => self.lex_keyword_or_id(),
                 // Int literals
                 c if c.is_ascii_digit() => self.lex_int_literal(),
+                '"' => self.lex_string(),
                 // TODO: make this return an error?
                 _ => self.make_err(),
             }

@@ -22,6 +22,8 @@ pub enum TokenKind {
     Star,
     /// '/'
     Slash,
+    /// '%'
+    Mod,
     // Relational ops
     /// '='
     Eq,
@@ -77,6 +79,7 @@ pub enum TokenKind {
     Static,
     This,
     Print,
+    Assert,
     // Types
     String,
     Int,
@@ -152,6 +155,7 @@ impl Display for TokenKind {
                 TokenKind::Minus => "MINUS",
                 TokenKind::Star => "TIMES",
                 TokenKind::Slash => "DIVIDE",
+                TokenKind::Mod => "MOD",
                 TokenKind::Eq => "ASSIGN",
                 TokenKind::EqEq => "EQ",
                 TokenKind::NotEq => "NE",
@@ -184,6 +188,7 @@ impl Display for TokenKind {
                 TokenKind::Static => "STATIC",
                 TokenKind::This => "THIS",
                 TokenKind::Print => "PRINT",
+                TokenKind::Assert => "ASSERT",
                 TokenKind::String => "STRING",
                 TokenKind::Int => "INT",
                 TokenKind::Boolean => "BOOLEAN",
@@ -193,7 +198,7 @@ impl Display for TokenKind {
                 TokenKind::True => "TRUE",
                 TokenKind::IntLiteral => "INT_LITERAL",
                 TokenKind::CharLiteral => "CHARLITERAL",
-                TokenKind::StringLiteral => "STRINGLITERAL",
+                TokenKind::StringLiteral => "STRING_LITERAL",
             }
         )
     }
