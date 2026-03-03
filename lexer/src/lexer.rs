@@ -130,6 +130,20 @@ impl<'src> Lexer<'src> {
             _ => self.make_token(Id, len),
         }
     }
+
+    fn lex_int_literal(&mut self) -> Option<TokenResult> {
+        let mut rest = self.rest().chars().peekable();
+
+        assert!(rest.peek().is_some_and(|c| c.is_ascii_digit()));
+
+        let len = if let Some(len) = rest.position(|c| !c.is_ascii_digit()) {
+            len
+        } else {
+            self.rest().len()
+        };
+
+        self.make_token(IntLiteral, len)
+    }
 }
 
 impl<'src> Iterator for Lexer<'src> {
@@ -183,6 +197,8 @@ impl<'src> Iterator for Lexer<'src> {
                 '=' | '!' | '<' | '>' | '&' | '|' => self.lex_two_char_ops(c),
                 // Identifiers or keywords
                 c if c.is_ascii_alphabetic() => self.lex_keyword_or_id(),
+                // Int literals
+                c if c.is_ascii_digit() => self.lex_int_literal(),
                 // TODO: make this return an error?
                 _ => self.make_err(),
             }
