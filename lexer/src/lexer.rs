@@ -207,7 +207,6 @@ impl<'src> Lexer<'src> {
         if rest.starts_with("//") {
             if let Some(len) = rest.find('\n') {
                 self.idx += len;
-                self.line += 1;
                 self.line_offset = self.idx;
             } else {
                 self.idx = self.input.len();
@@ -215,8 +214,22 @@ impl<'src> Lexer<'src> {
             true
         } else if rest.starts_with("/*") {
             if let Some(len) = rest.find("*/") {
-                self.idx += len + 1;
-                // TODO: update line info here
+                // Update line information
+                let newlines = rest
+                    .chars()
+                    .enumerate()
+                    .take(len)
+                    .filter(|(_idx, c)| *c == '\n');
+
+                let last_offset = newlines.clone().last().map(|(idx, _c)| idx);
+                let count = newlines.count();
+
+                self.line += count;
+                self.line_offset = match last_offset {
+                    Some(offset) => offset + self.idx,
+                    None => self.line_offset,
+                };
+                self.idx += len + 2;
             } else {
                 self.idx = self.input.len();
             }
