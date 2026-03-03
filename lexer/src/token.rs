@@ -1,10 +1,14 @@
-use std::{fmt::Display, ops::Range};
+use std::{
+    fmt::{Display, Write},
+    ops::Range,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Token {
     pub kind: TokenKind,
     // Note: we don't use `Range<usize>` since it doesn't implement `Copy`
     pub range: (usize, usize),
+    pub line: usize,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -45,6 +49,8 @@ pub enum TokenKind {
     Comma,
     /// ';'
     Semicolon,
+    /// '.'
+    Dot,
     /// '('
     LeftParen,
     /// ')'
@@ -61,13 +67,18 @@ pub enum TokenKind {
     If,
     Else,
     While,
+    For,
+    Main,
     Class,
     New,
     Return,
     Public,
     Private,
+    Static,
     This,
+    Print,
     // Types
+    String,
     Int,
     Boolean,
     Void,
@@ -80,6 +91,17 @@ pub enum TokenKind {
     StringLiteral,
 }
 
+/// Represents an error
+#[derive(Clone, Debug, Copy)]
+pub struct TokenError {
+    pub c: char,
+    /// Byte offset within the line
+    pub offset: usize,
+    pub line: usize,
+}
+
+pub type TokenResult = Result<Token, TokenError>;
+
 impl Token {
     /// Returns a standard `Range<usize>`. Useful for getting access to all common methods
     /// implemented on `Range<usize>` for array access, slicing and so on.
@@ -91,18 +113,33 @@ impl Token {
     }
 }
 
-pub fn print_tokens(tokens: &[Token], src: &str) {
-    let print_token = |token: Token| {
-        println!(
-            "LexToken({}, '{}', {}, {})",
-            token.kind,
-            &src[token.range()],
-            0,
-            token.range.0
-        );
+pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
+    let mut result = String::new();
+    let mut print_token = |tok: TokenResult| match tok {
+        Ok(tok) => {
+            writeln!(
+                &mut result,
+                "LexToken({},'{}',{},{})",
+                tok.kind,
+                &src[tok.range()],
+                tok.line,
+                tok.range.0
+            )
+            .unwrap();
+        }
+        Err(e) => {
+            writeln!(
+                &mut result,
+                "Lexical error: Illegal character '{}' at {}:{}",
+                e.c, e.line, e.offset
+            )
+            .unwrap();
+        }
     };
 
     tokens.iter().for_each(|t| print_token(*t));
+
+    result
 }
 
 impl Display for TokenKind {
@@ -118,17 +155,18 @@ impl Display for TokenKind {
                 TokenKind::Eq => "ASSIGN",
                 TokenKind::EqEq => "EQ",
                 TokenKind::NotEq => "NOTEQ",
-                TokenKind::Greater => "GREATER",
-                TokenKind::Less => "LESS",
+                TokenKind::Greater => "GT",
+                TokenKind::Less => "LT",
                 TokenKind::GreaterEq => "GREATEREQ",
-                TokenKind::LessEq => "LESSEQ",
+                TokenKind::LessEq => "LE",
                 TokenKind::And => "AND",
                 TokenKind::Or => "OR",
                 TokenKind::Not => "NOT",
                 TokenKind::Comma => "COMMA",
                 TokenKind::Semicolon => "SEMI",
+                TokenKind::Dot => "DOT",
                 TokenKind::LeftParen => "LPAREN",
-                TokenKind::RightParen => "RTPAREN",
+                TokenKind::RightParen => "RPAREN",
                 TokenKind::LeftBracket => "LBRACKET",
                 TokenKind::RightBracket => "RBRACKET",
                 TokenKind::LeftBrace => "LBRACE",
@@ -136,12 +174,17 @@ impl Display for TokenKind {
                 TokenKind::If => "IF",
                 TokenKind::Else => "ELSE",
                 TokenKind::While => "WHILE",
+                TokenKind::For => "FOR",
+                TokenKind::Main => "MAIN",
                 TokenKind::Class => "CLASS",
                 TokenKind::New => "NEW",
                 TokenKind::Return => "RETURN",
                 TokenKind::Public => "PUBLIC",
                 TokenKind::Private => "PRIVATE",
+                TokenKind::Static => "STATIC",
                 TokenKind::This => "THIS",
+                TokenKind::Print => "PRINT",
+                TokenKind::String => "STRING",
                 TokenKind::Int => "INT",
                 TokenKind::Boolean => "BOOLEAN",
                 TokenKind::Void => "VOID",

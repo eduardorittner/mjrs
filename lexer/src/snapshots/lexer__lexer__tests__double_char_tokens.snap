@@ -3,74 +3,104 @@ source: lexer/src/lexer.rs
 expression: tokens
 ---
 [
-    Token {
-        kind: EqEq,
-        range: (
-            0,
-            2,
-        ),
-    },
-    Token {
-        kind: NotEq,
-        range: (
-            3,
-            5,
-        ),
-    },
-    Token {
-        kind: LessEq,
-        range: (
-            6,
-            8,
-        ),
-    },
-    Token {
-        kind: GreaterEq,
-        range: (
-            9,
-            11,
-        ),
-    },
-    Token {
-        kind: And,
-        range: (
-            12,
-            14,
-        ),
-    },
-    Token {
-        kind: Or,
-        range: (
-            15,
-            17,
-        ),
-    },
-    Token {
-        kind: Eq,
-        range: (
-            18,
-            19,
-        ),
-    },
-    Token {
-        kind: Not,
-        range: (
-            20,
-            21,
-        ),
-    },
-    Token {
-        kind: Less,
-        range: (
-            22,
-            23,
-        ),
-    },
-    Token {
-        kind: Greater,
-        range: (
-            24,
-            25,
-        ),
-    },
+    Ok(
+        Token {
+            kind: EqEq,
+            range: (
+                0,
+                2,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: NotEq,
+            range: (
+                3,
+                5,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: LessEq,
+            range: (
+                6,
+                8,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: GreaterEq,
+            range: (
+                9,
+                11,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: And,
+            range: (
+                12,
+                14,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: Or,
+            range: (
+                15,
+                17,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: Eq,
+            range: (
+                18,
+                19,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: Not,
+            range: (
+                20,
+                21,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: Less,
+            range: (
+                22,
+                23,
+            ),
+            line: 1,
+        },
+    ),
+    Ok(
+        Token {
+            kind: Greater,
+            range: (
+                24,
+                25,
+            ),
+            line: 1,
+        },
+    ),
 ]
