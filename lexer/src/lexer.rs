@@ -114,6 +114,7 @@ impl<'src> Lexer<'src> {
             "for" => self.make_token(For, len),
             "main" => self.make_token(Main, len),
             "class" => self.make_token(Class, len),
+            "extends" => self.make_token(Extends, len),
             "new" => self.make_token(New, len),
             "return" => self.make_token(Return, len),
             "break" => self.make_token(Break, len),
