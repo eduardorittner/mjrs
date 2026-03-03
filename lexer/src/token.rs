@@ -122,6 +122,22 @@ impl Token {
 pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
     let mut result = String::new();
     let mut print_token = |tok: TokenResult| match tok {
+        Ok(
+            tok @ Token {
+                kind: TokenKind::CharLiteral,
+                ..
+            },
+        ) => {
+            writeln!(
+                &mut result,
+                "LexToken({},\"{}\",{},{})",
+                tok.kind,
+                &src[tok.range()],
+                tok.line,
+                tok.range.0
+            )
+            .unwrap();
+        }
         Ok(tok) => {
             writeln!(
                 &mut result,
