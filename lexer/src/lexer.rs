@@ -1,5 +1,3 @@
-use std::process::exit;
-
 use crate::token::{
     Token, TokenError,
     TokenKind::{self, *},
@@ -22,7 +20,7 @@ impl<'src> Lexer<'src> {
         lexer.collect()
     }
 
-    pub fn new(input: &'src str) -> Lexer {
+    pub fn new(input: &'src str) -> Lexer<'src> {
         Lexer {
             input,
             idx: 0,

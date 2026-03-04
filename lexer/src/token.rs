@@ -178,7 +178,7 @@ pub fn escape_string(str: &str) -> String {
 
     while idx < bytes.len() {
         if matches!(bytes[idx] as char, '\'' | '\\') {
-            bytes.insert(idx, '\\' as u8);
+            bytes.insert(idx, b'\\');
             idx += 1;
         }
         idx += 1;
