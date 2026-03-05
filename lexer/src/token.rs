@@ -184,7 +184,6 @@ pub fn escape_string(str: &str) -> String {
         idx += 1;
     }
 
-    println!("{string}");
     string
 }
 

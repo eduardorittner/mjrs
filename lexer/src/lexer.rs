@@ -46,7 +46,6 @@ impl<'src> Lexer<'src> {
     }
 
     fn make_err(&mut self) -> Option<TokenResult> {
-        println!("idx {}, line offset {}", self.idx, self.line_offset);
         let token = TokenError {
             c: self
                 .rest()
