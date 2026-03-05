@@ -11,6 +11,5 @@ fn fixtures(#[files("../fixtures/in-out/*.in")] path: PathBuf) {
 
     let result = token::fmt_tokens(&Lexer::lex(&input), &input);
 
-    // TODO: maybe pretty diff here?
     pretty_assertions::assert_str_eq!(output, result);
 }
