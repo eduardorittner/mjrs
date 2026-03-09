@@ -71,7 +71,7 @@ impl<'src> Parser<'src> {
     }
 
     /// Parses primary expressions, which are either literals or of the form '(' <expr> ')'
-    fn primary_expr(&'src mut self) -> NodeResult {
+    fn primary_expr(&mut self) -> NodeResult {
         let primary_kinds = vec![
             TokenKind::True,
             TokenKind::False,
@@ -129,29 +129,35 @@ mod tests {
         ast::{Expr, Node, NodeKind, NodeResult},
     };
 
-    fn test_parse_case(
-        input: &str,
-        tokens: Vec<TokenResult>,
-        parse_fn: &mut Box<dyn FnMut(&mut Parser) -> NodeResult>,
+    struct ParseCaseArgs<'src> {
+        input: &'src str,
+        tokens: &'src Vec<TokenResult>,
         expected: NodeResult,
-    ) {
-        let mut parser = Parser::new(input, &tokens);
-        let result = parse_fn(&mut parser);
+    }
 
-        pretty_assertions::assert_eq!(expected, result);
+    // Note: we're using a macro here instead of a function which takes a generic function
+    // fn(&mut self) -> NodeResult since for some reason the lifetimes weren't matching.
+    // With macros we don't have this problem since we pass the name of the function, not the
+    // function itself.
+    macro_rules! test_parse_case {
+        ($fn_name:ident, $args:ident) => {
+            let mut parser = Parser::new($args.input, $args.tokens);
+            let result = Parser::$fn_name(&mut parser);
+
+            pretty_assertions::assert_eq!($args.expected, result);
+        };
     }
 
     #[test]
     fn primary_expr() {
-        test_parse_case(
-            "true",
-            vec![Ok(Token {
+        let args = ParseCaseArgs {
+            input: "true",
+            tokens: &vec![Ok(Token {
                 kind: TokenKind::True,
                 range: (0, 4),
                 line: 1,
             })],
-            &mut Box::new(Parser::primary_expr as (&dyn FnMut(&mut Parser) -> NodeResult)),
-            Ok(Node {
+            expected: Ok(Node {
                 kind: NodeKind::Expr(Expr::True),
                 token: Token {
                     kind: TokenKind::True,
@@ -159,6 +165,7 @@ mod tests {
                     line: 1,
                 },
             }),
-        );
+        };
+        test_parse_case!(expr, args);
     }
 }
