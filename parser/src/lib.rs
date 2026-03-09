@@ -47,10 +47,18 @@ impl<'src> Parser<'src> {
         }
     }
 
+    fn peek(&mut self) -> Option<TokenResult> {
+        if self.idx != self.tokens.len() {
+            Some(self.tokens[self.idx])
+        } else {
+            None
+        }
+    }
+
     fn expr(&mut self) -> NodeResult {
         let mut expr = self.primary_expr()?;
 
-        while let Ok(tok) = self.tokens[self.idx] {
+        while let Some(Ok(tok)) = self.peek() {
             if tok.kind.is_binary_operator() {
                 self.idx += 1;
                 let rhs = self.expr()?;
