@@ -3,7 +3,7 @@ use std::{
     ops::Range,
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     // Note: we don't use `Range<usize>` since it doesn't implement `Copy`
@@ -98,8 +98,33 @@ pub enum TokenKind {
     StringLiteral,
 }
 
+impl TokenKind {
+    pub fn is_binary_operator(&self) -> bool {
+        matches!(
+            self,
+            Self::Plus
+                | Self::Minus
+                | Self::Star
+                | Self::Slash
+                | Self::And
+                | Self::Or
+                | Self::Mod
+                | Self::Greater
+                | Self::Less
+                | Self::EqEq
+                | Self::NotEq
+                | Self::GreaterEq
+                | Self::LessEq
+        )
+    }
+
+    pub fn is_unary_operator(&self) -> bool {
+        matches!(self, Self::Not)
+    }
+}
+
 /// Represents an error
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub struct TokenError {
     pub c: char,
     /// Byte offset within the line
