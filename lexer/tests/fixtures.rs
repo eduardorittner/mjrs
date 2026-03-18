@@ -3,7 +3,7 @@ use rstest::rstest;
 use std::{fs, path::PathBuf};
 
 #[rstest]
-fn fixtures(#[files("../fixtures/in-out/*.in")] path: PathBuf) {
+fn fixtures(#[files("../fixtures/lexer/*.in")] path: PathBuf) {
     let mut output_path = path.clone();
     output_path.set_extension("out");
     let input = fs::read_to_string(path).unwrap();
