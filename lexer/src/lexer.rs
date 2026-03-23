@@ -1,5 +1,5 @@
 use crate::token::{
-    Token, TokenError,
+    Coords, Token, TokenError,
     TokenKind::{self, *},
     TokenResult,
 };
@@ -36,10 +36,18 @@ impl<'src> Lexer<'src> {
 
     /// Returns a new token and updates `self.idx`
     fn make_token(&mut self, kind: TokenKind, len: usize) -> Option<TokenResult> {
+        // Calculate column based on the byte offset of the start of current line
+        let column = if self.idx - self.line_offset == 0 {
+            1
+        } else {
+            self.idx - self.line_offset
+        };
+
         let token = Token {
             kind,
             range: (self.idx, self.idx + len),
-            line: self.line,
+            // Line offset is 1-indexed
+            coords: Coords::new(self.line, column),
         };
         self.idx += len;
         Some(Ok(token))

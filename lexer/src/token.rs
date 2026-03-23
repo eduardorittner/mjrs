@@ -3,12 +3,27 @@ use std::{
     ops::Range,
 };
 
+/// Token's line, column coordinates
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Coords {
+    /// Line number, 1-indexed
+    pub line: usize,
+    /// Offset within line, 1-indexed
+    pub column: usize,
+}
+
+impl Coords {
+    pub fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     // Note: we don't use `Range<usize>` since it doesn't implement `Copy`
     pub range: (usize, usize),
-    pub line: usize,
+    pub coords: Coords,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -119,7 +134,7 @@ impl TokenKind {
     }
 
     pub fn is_unary_operator(&self) -> bool {
-        matches!(self, Self::Not)
+        matches!(self, Self::Not | Self::Plus | Self::Minus)
     }
 }
 
@@ -143,6 +158,22 @@ impl Token {
             end: self.range.1,
         }
     }
+
+    pub fn value<'src>(&'src self, src: &'src str) -> &'src str {
+        &src[self.range()]
+    }
+
+    pub fn formatted_pos(&self) -> String {
+        format!("@ {}:{}", self.line(), self.column())
+    }
+
+    pub fn line(&self) -> usize {
+        self.coords.line
+    }
+
+    pub fn column(&self) -> usize {
+        self.coords.column
+    }
 }
 
 pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
@@ -159,7 +190,7 @@ pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
                 "LexToken({},\"{}\",{},{})",
                 tok.kind,
                 &src[tok.range()],
-                tok.line,
+                tok.coords.line,
                 tok.range.0
             )
             .unwrap();
@@ -170,7 +201,7 @@ pub fn fmt_tokens(tokens: &[TokenResult], src: &str) -> String {
                 "LexToken({},'{}',{},{})",
                 tok.kind,
                 &escape_string(&src[tok.range()]),
-                tok.line,
+                tok.coords.line,
                 tok.range.0
             )
             .unwrap();
