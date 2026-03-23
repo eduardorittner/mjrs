@@ -12,7 +12,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 1,
             },
         },
     ),
@@ -25,7 +25,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 1,
             },
         },
     ),
@@ -38,7 +38,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 2,
             },
         },
     ),
@@ -51,7 +51,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 3,
             },
         },
     ),
@@ -64,7 +64,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 4,
             },
         },
     ),
@@ -77,7 +77,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 5,
             },
         },
     ),
@@ -90,7 +90,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 6,
             },
         },
     ),
@@ -103,7 +103,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 7,
             },
         },
     ),
@@ -116,7 +116,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 8,
             },
         },
     ),
@@ -129,7 +129,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 9,
             },
         },
     ),
@@ -142,7 +142,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 10,
             },
         },
     ),
@@ -155,7 +155,7 @@ expression: tokens
             ),
             coords: Coords {
                 line: 1,
-                column: 0,
+                column: 11,
             },
         },
     ),
