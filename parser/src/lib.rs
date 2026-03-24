@@ -1,7 +1,8 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    Expr, MainMethodDecl, MethodDecl, Node, NodeErr, NodeKind, NodeResult, Print, RegularMethodDecl,
+    AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeKind,
+    NodeResult, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind, VarDeclList,
 };
 
 pub mod ast;
@@ -14,6 +15,12 @@ pub struct Parser<'src> {
 
     /// Current position inside `tokens`
     idx: usize,
+}
+
+macro_rules! advance {
+    ($parser:expr, $kinds:expr) => {
+        $parser.advance($kinds, line!(), file!())
+    };
 }
 
 impl<'src> Parser<'src> {
@@ -50,17 +57,17 @@ impl<'src> Parser<'src> {
 
     fn class_decl(&mut self) -> NodeResult {
         // Parse "class" keyword
-        let class_token = self.advance(&[TokenKind::Class])?;
+        let class_token = advance!(self, &[TokenKind::Class])?;
 
         // Parse class name (identifier)
-        let name_token = self.advance(&[TokenKind::Id])?;
+        let name_token = advance!(self, &[TokenKind::Id])?;
         let name = crate::ast::Id {
             name: self.get_token_value(name_token).to_string(),
             token: name_token,
         };
 
         // Parse "{"
-        let compound_start = self.advance(&[TokenKind::LeftBrace])?;
+        let compound_start = advance!(self, &[TokenKind::LeftBrace])?;
 
         // Parse class body
         let mut var_decls = Vec::new();
@@ -97,7 +104,7 @@ impl<'src> Parser<'src> {
         }
 
         // Parse "}"
-        self.advance(&[TokenKind::RightBrace])?;
+        advance!(self, &[TokenKind::RightBrace])?;
 
         Ok(Node {
             kind: Box::new(NodeKind::ClassDecl(crate::ast::ClassDecl {
@@ -116,38 +123,23 @@ impl<'src> Parser<'src> {
 
     fn var_decl(&mut self) -> NodeResult {
         // Parse type
-        println!("{:?}", self.tokens[self.idx]);
-        let type_token = self.advance(&[TokenKind::Int, TokenKind::Char, TokenKind::Boolean])?;
-        let ty = match type_token.kind {
-            TokenKind::Int => crate::ast::Type {
-                ty: crate::ast::TypeKind::Int,
-                token: type_token,
-            },
-            TokenKind::Char => crate::ast::Type {
-                ty: crate::ast::TypeKind::Char,
-                token: type_token,
-            },
-            TokenKind::Boolean => crate::ast::Type {
-                ty: crate::ast::TypeKind::Boolean,
-                token: type_token,
-            },
-            _ => unreachable!(),
-        };
+        let ty = self.type_specifier().ok_or(NodeErr::Eof)??;
 
         // Parse first identifier
-        let name_token = self.advance(&[TokenKind::Id])?;
+        let name_token = advance!(self, &[TokenKind::Id])?;
         let name = crate::ast::Id {
             name: self.get_token_value(name_token).to_string(),
             token: name_token,
         };
 
+        println!("after id: {:?}", self.peek());
+
         // Parse optional initializer
         let mut init = None;
-        if let Some(Ok(eq_token)) = self.peek() {
-            if eq_token.kind == TokenKind::Eq {
-                self.idx += 1; // consume "="
-                init = Some(Box::new(self.expr()?));
-            }
+        if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
+            println!("after eq: {:?}", self.peek());
+            println!("buibu");
+            init = Some(Box::new(self.expr()?));
         }
 
         // Check for comma-separated declarations
@@ -157,7 +149,7 @@ impl<'src> Parser<'src> {
                 while let Some(Ok(token)) = self.peek() {
                     if token.kind == TokenKind::Comma {
                         self.idx += 1; // consume comma
-                        self.advance(&[TokenKind::Id])?; // consume identifier
+                        advance!(self, &[TokenKind::Id])?; // consume identifier
 
                         // Check for optional initializer
                         if let Some(Ok(eq_token)) = self.peek() {
@@ -174,38 +166,55 @@ impl<'src> Parser<'src> {
         }
 
         // Parse ";"
-        self.advance(&[TokenKind::Semicolon])?;
+        advance!(self, &[TokenKind::Semicolon])?;
 
         Ok(Node {
             kind: Box::new(NodeKind::VarDecl(crate::ast::VarDecl {
-                ty: Box::new(ty),
+                ty: Box::new(ty.clone()),
                 name: Box::new(name),
                 init,
             })),
-            token: type_token,
+            token: ty.token,
         })
     }
 
+    // TODO: do we need this?
     fn get_token_value(&self, token: Token) -> &str {
         &self.input[token.range.0..token.range.1]
     }
 
     /// Consumes the next token, returning an error if the token kind is not present in `expected`
-    fn advance(&mut self, expected: &[TokenKind]) -> Result<Token, NodeErr> {
+    fn advance(
+        &mut self,
+        expected: &[TokenKind],
+        line: u32,
+        file: &'static str,
+    ) -> Result<Token, NodeErr> {
         match self.tokens[self.idx] {
+            Ok(tok) if expected.contains(&tok.kind) => {
+                self.idx += 1;
+                Ok(tok)
+            }
             Ok(tok) => {
-                if expected.contains(&tok.kind) {
-                    self.idx += 1;
-                    Ok(tok)
-                } else {
-                    // TODO: should we advance `self.idx` here?
-                    Err(NodeErr::Unexpected {
-                        expected: Vec::from(expected),
-                        actual: tok,
-                    })
-                }
+                // TODO: should we  `self.idx` here?
+                Err(NodeErr::Unexpected {
+                    expected: Vec::from(expected),
+                    actual: tok,
+                    line,
+                    file,
+                })
             }
             Err(e) => Err(NodeErr::LexErr(e)),
+        }
+    }
+
+    fn advance_if(&mut self, expected: &[TokenKind]) -> Option<Token> {
+        match self.tokens[self.idx] {
+            Ok(tok) if expected.contains(&tok.kind) => {
+                self.idx += 1;
+                Some(tok)
+            }
+            _ => None,
         }
     }
 
@@ -290,7 +299,7 @@ impl<'src> Parser<'src> {
                 self.idx += 1; // consume '.'
 
                 // Expect an identifier after the dot
-                let field_token = self.advance(&[TokenKind::Id])?;
+                let field_token = advance!(self, &[TokenKind::Id])?;
                 let field = crate::ast::Id {
                     name: self.get_token_value(field_token).to_string(),
                     token: field_token,
@@ -313,23 +322,19 @@ impl<'src> Parser<'src> {
 
     /// Parses primary expressions without field access
     fn primary_expr_without_field_access(&mut self) -> NodeResult {
-        // Handle unary operators
-        if let Some(Ok(token)) = self.peek() {
-            if token.kind.is_unary_operator() {
-                self.idx += 1; // consume operator
-                let operand = self.primary_expr()?;
-                return Ok(Node {
-                    token,
-                    kind: Box::new(NodeKind::Expr(Expr::Unary {
-                        op: token.kind,
-                        operand: Box::new(operand),
-                    })),
-                });
-            }
-        }
-
         if let Some(Ok(token)) = self.peek() {
             match token.kind {
+                TokenKind::Minus | TokenKind::Not => {
+                    self.idx += 1; // consume operator
+                    let operand = self.primary_expr()?;
+                    return Ok(Node {
+                        token,
+                        kind: Box::new(NodeKind::Expr(Expr::Unary {
+                            op: token.kind,
+                            operand: Box::new(operand),
+                        })),
+                    });
+                }
                 TokenKind::True => {
                     self.idx += 1;
                     Ok(Node {
@@ -342,13 +347,6 @@ impl<'src> Parser<'src> {
                     Ok(Node {
                         token,
                         kind: Box::new(NodeKind::Expr(Expr::False)),
-                    })
-                }
-                TokenKind::IntLiteral => {
-                    self.idx += 1;
-                    Ok(Node {
-                        token,
-                        kind: Box::new(NodeKind::Expr(Expr::IntLiteral)),
                     })
                 }
                 TokenKind::CharLiteral => {
@@ -377,6 +375,24 @@ impl<'src> Parser<'src> {
                         )))),
                     })
                 }
+                TokenKind::New => {
+                    println!("HA");
+                    self.idx += 1;
+
+                    if let Some(Ok(id_token)) = self.identifier() {
+                        advance!(self, &[TokenKind::LeftParen])?;
+                        advance!(self, &[TokenKind::RightParen])?;
+                        Ok(Node {
+                            token,
+                            kind: Box::new(NodeKind::Expr(Expr::New(Box::new(Type {
+                                ty: TypeKind::Custom(id_token.token),
+                                token: id_token.token,
+                            })))),
+                        })
+                    } else {
+                        todo!()
+                    }
+                }
                 TokenKind::StringLiteral => {
                     self.idx += 1;
                     Ok(Node {
@@ -387,7 +403,7 @@ impl<'src> Parser<'src> {
                 TokenKind::LeftParen => {
                     self.idx += 1; // consume '('
                     let expr = self.expr()?;
-                    self.advance(&[TokenKind::RightParen])?; // consume ')'
+                    advance!(self, &[TokenKind::RightParen])?; // consume ')'
                     Ok(expr)
                 }
                 _ => Err(NodeErr::Unexpected {
@@ -404,10 +420,13 @@ impl<'src> Parser<'src> {
                         TokenKind::Not,
                     ],
                     actual: token,
+                    line: line!(),
+                    file: file!(),
                 }),
+                _ => todo!(),
             }
         } else {
-            todo!("emit Unexepcted error here")
+            todo!()
         }
     }
 
@@ -421,21 +440,24 @@ impl<'src> Parser<'src> {
 
     fn method_decl(&mut self) -> NodeResult {
         // Parse "public"
-        let public_token = self.advance(&[TokenKind::Public])?;
+        let public_token = advance!(self, &[TokenKind::Public])?;
 
         // Parse "static"
-        self.advance(&[TokenKind::Static])?;
+        advance!(self, &[TokenKind::Static])?;
 
         // Parse return type
-        let return_type_token = self.advance(&[
-            TokenKind::Void,
-            TokenKind::Int,
-            TokenKind::Char,
-            TokenKind::Boolean,
-        ])?;
+        let return_type_token = advance!(
+            self,
+            &[
+                TokenKind::Void,
+                TokenKind::Int,
+                TokenKind::Char,
+                TokenKind::Boolean,
+            ]
+        )?;
         let return_type = match return_type_token.kind {
             TokenKind::Void => crate::ast::Type {
-                ty: crate::ast::TypeKind::Custom("void".to_string()),
+                ty: crate::ast::TypeKind::Custom(return_type_token),
                 token: return_type_token,
             },
             TokenKind::Int => crate::ast::Type {
@@ -454,23 +476,23 @@ impl<'src> Parser<'src> {
         };
 
         // Parse method name
-        let name_token = self.advance(&[TokenKind::Id, TokenKind::Main])?;
+        let name_token = advance!(self, &[TokenKind::Id, TokenKind::Main])?;
         let name = crate::ast::Id {
             name: self.get_token_value(name_token).to_string(),
             token: name_token,
         };
 
         // Parse "("
-        self.advance(&[TokenKind::LeftParen])?;
+        advance!(self, &[TokenKind::LeftParen])?;
 
         // Parse parameter list
         let param_list = self.param_list();
 
         // Parse ")"
-        self.advance(&[TokenKind::RightParen])?;
+        advance!(self, &[TokenKind::RightParen])?;
 
         // Parse method body
-        let body = self.compound_stmt();
+        let body = self.compound_stmt()?;
 
         println!("{name_token:?}");
 
@@ -506,14 +528,16 @@ impl<'src> Parser<'src> {
         if let Some(Ok(token)) = self.peek() {
             if token.kind != TokenKind::RightParen {
                 // Parse first parameter
-                let type_token = self
-                    .advance(&[
+                let type_token = advance!(
+                    self,
+                    &[
                         TokenKind::Int,
                         TokenKind::Char,
                         TokenKind::Boolean,
                         TokenKind::String,
-                    ])
-                    .expect("Expected parameter type");
+                    ]
+                )
+                .expect("Expected parameter type");
 
                 // Check for array type
                 let mut param_type = match type_token.kind {
@@ -540,15 +564,12 @@ impl<'src> Parser<'src> {
                 if let Some(Ok(bracket_token)) = self.peek() {
                     if bracket_token.kind == TokenKind::LeftBracket {
                         self.idx += 1; // consume '['
-                        self.advance(&[TokenKind::RightBracket])
-                            .expect("Expected ']'");
+                        advance!(self, &[TokenKind::RightBracket]).expect("Expected ']'");
                         // For now, we'll just keep the base type and ignore the array part
                     }
                 }
 
-                let name_token = self
-                    .advance(&[TokenKind::Id])
-                    .expect("Expected parameter name");
+                let name_token = advance!(self, &[TokenKind::Id]).expect("Expected parameter name");
                 let param_name = crate::ast::Id {
                     name: self.get_token_value(name_token).to_string(),
                     token: name_token,
@@ -561,14 +582,16 @@ impl<'src> Parser<'src> {
                     if comma_token.kind == TokenKind::Comma {
                         self.idx += 1; // consume comma
 
-                        let type_token = self
-                            .advance(&[
+                        let type_token = advance!(
+                            self,
+                            &[
                                 TokenKind::Int,
                                 TokenKind::Char,
                                 TokenKind::Boolean,
                                 TokenKind::String,
-                            ])
-                            .expect("Expected parameter type");
+                            ]
+                        )
+                        .expect("Expected parameter type");
 
                         // Check for array type
                         let param_type = match type_token.kind {
@@ -595,15 +618,13 @@ impl<'src> Parser<'src> {
                         if let Some(Ok(bracket_token)) = self.peek() {
                             if bracket_token.kind == TokenKind::LeftBracket {
                                 self.idx += 1; // consume '['
-                                self.advance(&[TokenKind::RightBracket])
-                                    .expect("Expected ']'");
+                                advance!(self, &[TokenKind::RightBracket]).expect("Expected ']'");
                                 // For now, we'll just keep the base type and ignore the array part
                             }
                         }
 
-                        let name_token = self
-                            .advance(&[TokenKind::Id])
-                            .expect("Expected parameter name");
+                        let name_token =
+                            advance!(self, &[TokenKind::Id]).expect("Expected parameter name");
                         let param_name = crate::ast::Id {
                             name: self.get_token_value(name_token).to_string(),
                             token: name_token,
@@ -620,9 +641,10 @@ impl<'src> Parser<'src> {
         crate::ast::ParamList { params }
     }
 
-    fn compound_stmt(&mut self) -> crate::ast::Compound {
+    fn compound_stmt(&mut self) -> ParseResult<Compound> {
         // Parse "{"
-        let compound_start = self.advance(&[TokenKind::LeftBrace]).expect("Expected '{'");
+        let compound_start = advance!(self, &[TokenKind::LeftBrace])
+            .expect("Expected '{' to start compound statement");
 
         let mut stmts = Vec::new();
 
@@ -640,14 +662,11 @@ impl<'src> Parser<'src> {
                 }
                 TokenKind::Print => {
                     // Print statement
-                    let print = self
-                        .advance(&[TokenKind::Print])
-                        .expect("checked before-hand");
-                    self.advance(&[TokenKind::LeftParen]).expect("Expected '('");
+                    let print = advance!(self, &[TokenKind::Print]).expect("checked before-hand");
+                    advance!(self, &[TokenKind::LeftParen]).expect("Expected '('");
                     let expr = self.expr().expect("Expected expression");
-                    self.advance(&[TokenKind::RightParen])
-                        .expect("Expected ')'");
-                    self.advance(&[TokenKind::Semicolon]).expect("Expected ';'");
+                    advance!(self, &[TokenKind::RightParen]).expect("Expected ')'");
+                    advance!(self, &[TokenKind::Semicolon]).expect("Expected ';'");
 
                     stmts.push(crate::ast::Statement::Print(Print {
                         item: Box::new(expr),
@@ -656,12 +675,16 @@ impl<'src> Parser<'src> {
                 }
                 TokenKind::Id => {
                     // Either expression statement or declaration
-                    // TODO: fuck you
-                    // Expression statement (for now, just consume it)
-
                     match self.peek_n(1) {
                         Some(Ok(t)) => match t.kind {
-                            TokenKind::Id => todo!("var decl"),
+                            TokenKind::Id => {
+                                let decl = self.var_decl()?;
+                                let decl = match *decl.kind {
+                                    NodeKind::VarDecl(decl) => decl,
+                                    _ => panic!("Expected VarDecl"),
+                                };
+                                stmts.push(Statement::VarDecl(decl));
+                            }
                             _ => unimplemented!(),
                         },
                         _ => unimplemented!(),
@@ -678,19 +701,108 @@ impl<'src> Parser<'src> {
         }
 
         // Parse "}"
-        self.advance(&[TokenKind::RightBrace])
-            .expect("Expected '}'");
+        advance!(self, &[TokenKind::RightBrace]).expect("Expected '}' to end compound statement");
 
-        crate::ast::Compound {
+        Ok(Compound {
             stmts,
             token: compound_start,
+        })
+    }
+
+    fn compound_declaration(&mut self) -> ParseResult<VarDeclList> {
+        while let Some(Ok(token)) = self.type_specifier() {
+            let declarator_list = self.init_declarator_list()?;
+
+            declarator_list.into_iter().map(|(name, init)| {});
         }
+        todo!()
+    }
+
+    fn identifier(&mut self) -> Option<ParseResult<Id>> {
+        if let Some(token) = self.advance_if(&[TokenKind::Id]) {
+            Some(Ok(Id {
+                name: self.get_token_value(token).to_string(),
+                token,
+            }))
+        } else {
+            None
+        }
+    }
+
+    fn type_specifier(&mut self) -> Option<ParseResult<Type>> {
+        let type_specifiers: [TokenKind; 6] = [
+            TokenKind::Void,
+            TokenKind::Boolean,
+            TokenKind::Char,
+            TokenKind::Int,
+            TokenKind::String,
+            TokenKind::Id,
+        ];
+
+        if let Some(token) = self.advance_if(&type_specifiers) {
+            match TypeKind::try_from(token) {
+                Ok(ty) => Some(Ok(Type { ty, token })),
+                Err(e) => Some(Err(e)),
+            }
+        } else {
+            None
+        }
+    }
+
+    fn init_declarator_list(&mut self) -> ParseResult<Vec<(Id, Option<AssignmentExpr>)>> {
+        let mut results = Vec::new();
+
+        while let Some(var_name) = self.advance_if(&[TokenKind::Id]) {
+            if let Some(tok) = self.advance_if(&[TokenKind::Eq, TokenKind::Comma]) {
+                match tok.kind {
+                    TokenKind::Eq => {
+                        results.push((
+                            Id {
+                                name: self.get_token_value(var_name).to_string(),
+                                token: var_name,
+                            },
+                            Some(self.assignment_expr()?),
+                        ));
+
+                        if let Some(_) = self.advance_if(&[TokenKind::Comma]) {
+                        } else {
+                            break;
+                        }
+                    }
+                    TokenKind::Comma => {
+                        results.push((
+                            Id {
+                                name: self.get_token_value(var_name).to_string(),
+                                token: var_name,
+                            },
+                            None,
+                        ));
+                        continue;
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                results.push((
+                    Id {
+                        name: self.get_token_value(var_name).to_string(),
+                        token: var_name,
+                    },
+                    None,
+                ));
+            }
+        }
+
+        Ok(results)
+    }
+
+    fn assignment_expr(&mut self) -> ParseResult<AssignmentExpr> {
+        todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use lexer::token::{Coords, Token, TokenError, TokenKind, TokenResult};
+    use lexer::token::{Coords, Token, TokenKind, TokenResult};
 
     use crate::{
         Parser,

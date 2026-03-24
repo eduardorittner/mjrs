@@ -1,5 +1,3 @@
-use std::path::Iter;
-
 use lexer::token::{Token, TokenError, TokenKind};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,9 +12,14 @@ pub enum NodeErr {
     Unexpected {
         expected: Vec<TokenKind>,
         actual: Token,
+        line: u32,
+        file: &'static str,
     },
+    Eof,
     LexErr(TokenError),
 }
+
+pub type ParseResult<T> = Result<T, NodeErr>;
 
 pub type NodeResult = Result<Node, NodeErr>;
 
@@ -45,6 +48,7 @@ pub struct ClassDecl {
     pub body: Compound,
 }
 
+// TODO: remove `name` field since it's redundant
 #[derive(Debug, Clone, PartialEq)]
 pub struct Id {
     pub name: String,
@@ -65,11 +69,34 @@ pub struct Type {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeKind {
+    Void,
     Boolean,
     Char,
     Int,
     String,
-    Custom(String),
+    // TODO: should we remove this?
+    Custom(Token),
+}
+
+impl TryFrom<Token> for TypeKind {
+    type Error = NodeErr;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.kind {
+            TokenKind::String => Ok(TypeKind::String),
+            TokenKind::Int => Ok(TypeKind::Int),
+            TokenKind::Char => Ok(TypeKind::Char),
+            TokenKind::Boolean => Ok(TypeKind::Boolean),
+            TokenKind::Void => Ok(TypeKind::Void),
+            TokenKind::Id => Ok(TypeKind::Custom(value)),
+            _ => panic!("token is not valid type specifier"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VarDeclList {
+    pub decls: Vec<VarDecl>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -111,6 +138,7 @@ pub struct Compound {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    VarDeclList(VarDeclList),
     VarDecl(VarDecl),
     Print(Print),
     Expression(Box<Node>),
@@ -150,6 +178,9 @@ pub enum Expr {
         field: Box<Id>,
     },
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssignmentExpr {}
 
 /// Format trait for a generic node
 pub trait Show<'src> {
@@ -271,7 +302,12 @@ impl<'src> Show<'src> for Node {
                         self.token.formatted_pos()
                     )
                 }
-                Expr::New(ty) => format!("NewObject: @ {}:{}", ty.token.line(), ty.token.column()),
+                Expr::New(ty) => format!(
+                    "{}NewObject: {}\n{}",
+                    Self::indent(indent),
+                    self.token.formatted_pos(),
+                    ty.show(&input, indent + Self::TAB)
+                ),
                 Expr::Unary { op, operand } => {
                     let op_str = match op {
                         TokenKind::Not => "!",
@@ -424,6 +460,7 @@ impl<'src> Show<'src> for Statement {
                 result
             }
             Statement::Expression(node) => todo!(),
+            Statement::VarDeclList(node) => todo!(),
         }
     }
 }
@@ -445,11 +482,12 @@ impl<'src> Show<'src> for Type {
             "{}Type: {} {}\n",
             Self::indent(indent),
             match &self.ty {
+                TypeKind::Void => "void".to_string(),
                 TypeKind::Int => "int".to_string(),
                 TypeKind::Char => "char".to_string(),
                 TypeKind::Boolean => "boolean".to_string(),
                 TypeKind::String => "String".to_string(),
-                TypeKind::Custom(name) => name.clone(),
+                TypeKind::Custom(tok) => format!("ID(name={})", tok.value(input).to_string()),
             },
             self.token.formatted_pos()
         )
