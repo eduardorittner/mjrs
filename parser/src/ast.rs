@@ -28,13 +28,14 @@ pub enum NodeErr {
 
 pub type ParseResult<T> = Result<T, NodeErr>;
 
-pub type NodeResult = Result<Node, NodeErr>;
+pub type NodeResult = ParseResult<Node>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeKind {
     Program(Program),
     ClassDecl(ClassDecl),
     MethodDecl(MethodDecl),
+    VarDeclList(VarDeclList),
     VarDecl(VarDecl),
     Expr(Expr),
     Statement(Statement),
@@ -164,7 +165,7 @@ pub struct ParamList {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    IntLiteral,
+    IntLiteral(Token),
     CharLiteral,
     True,
     False,
@@ -289,7 +290,12 @@ impl<'src> Show<'src> for Node {
                 // result
             }
             NodeKind::Expr(expr) => match expr {
-                Expr::IntLiteral => "IntLiteral".to_string(),
+                Expr::IntLiteral(tok) => format!(
+                    "{}Constant: int, {} {}\n",
+                    Self::indent(indent),
+                    tok.value(input),
+                    tok.formatted_pos()
+                ),
                 Expr::CharLiteral => {
                     format!(
                         "{}Constant: char, {} {}\n",
@@ -456,6 +462,7 @@ impl<'src> Show<'src> for Statement {
     fn show(&self, input: &'src str, indent: usize) -> String {
         match self {
             Statement::VarDecl(var_decl) => var_decl.show(input, indent),
+            Statement::VarDeclList(node) => node.show(input, indent),
             Statement::Print(node) => {
                 let mut result = format!(
                     "{}Print: {}\n",
@@ -467,7 +474,6 @@ impl<'src> Show<'src> for Statement {
                 result
             }
             Statement::Expression(node) => todo!(),
-            Statement::VarDeclList(node) => todo!(),
         }
     }
 }
@@ -516,6 +522,15 @@ impl<'src> Show<'src> for VarDecl {
         }
 
         result
+    }
+}
+
+impl<'src> Show<'src> for VarDeclList {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        self.decls
+            .iter()
+            .map(|decl| decl.show(input, indent))
+            .collect()
     }
 }
 

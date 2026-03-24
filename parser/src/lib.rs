@@ -2,7 +2,8 @@ use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
     AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeKind,
-    NodeResult, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind, VarDeclList,
+    NodeResult, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind, VarDecl,
+    VarDeclList,
 };
 
 pub mod ast;
@@ -79,7 +80,7 @@ impl<'src> Parser<'src> {
                 TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
                     // Check if it's a variable or method declaration
                     // For now, let's just parse variable declarations
-                    let var_decl_node = self.var_decl()?;
+                    let var_decl_node = self.var_decl_list()?;
                     let var_decl = match var_decl_node.kind {
                         NodeKind::VarDecl(decl) => decl,
                         _ => panic!("Expected VarDecl"),
@@ -121,60 +122,56 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn var_decl(&mut self) -> NodeResult {
+    fn var_decl_list(&mut self) -> NodeResult {
+        let mut decls = Vec::new();
         // Parse type
         let ty = self.type_specifier().ok_or(NodeErr::Eof)??;
 
-        // Parse first identifier
+        while let Ok(var_decl) = self.var_decl(ty.clone()) {
+            decls.push(var_decl);
+
+            if let Some(_comma) = self.advance_if(&[TokenKind::Comma]) {
+                continue;
+            }
+
+            break;
+        }
+
+        // Parse ";"
+        advance!(self, &[TokenKind::Semicolon])?;
+
+        if decls.len() == 1 {
+            Ok(Node {
+                kind: NodeKind::VarDecl(decls.into_iter().next().unwrap()),
+                token: ty.token,
+            })
+        } else {
+            Ok(Node {
+                kind: NodeKind::VarDeclList(VarDeclList { decls }),
+                token: ty.token,
+            })
+        }
+    }
+
+    /// Parses a single variable declaration after a type_specifier
+    fn var_decl(&mut self, ty: Type) -> ParseResult<VarDecl> {
         let name_token = advance!(self, &[TokenKind::Id])?;
         let name = crate::ast::Id {
             name: self.get_token_value(name_token).to_string(),
             token: name_token,
         };
 
-        println!("after id: {:?}", self.peek());
+        // Optional initializer expression
+        let init = if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
+            Some(Box::new(self.expr()?))
+        } else {
+            None
+        };
 
-        // Parse optional initializer
-        let mut init = None;
-        if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
-            println!("after eq: {:?}", self.peek());
-            println!("buibu");
-            init = Some(Box::new(self.expr()?));
-        }
-
-        // Check for comma-separated declarations
-        if let Some(Ok(comma_token)) = self.peek() {
-            if comma_token.kind == TokenKind::Comma {
-                // For now, we'll just parse the first declaration and ignore the rest
-                while let Some(Ok(token)) = self.peek() {
-                    if token.kind == TokenKind::Comma {
-                        self.idx += 1; // consume comma
-                        advance!(self, &[TokenKind::Id])?; // consume identifier
-
-                        // Check for optional initializer
-                        if let Some(Ok(eq_token)) = self.peek() {
-                            if eq_token.kind == TokenKind::Eq {
-                                self.idx += 1; // consume "="
-                                self.expr()?; // consume expression
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Parse ";"
-        advance!(self, &[TokenKind::Semicolon])?;
-
-        Ok(Node {
-            kind: NodeKind::VarDecl(crate::ast::VarDecl {
-                ty: Box::new(ty.clone()),
-                name: Box::new(name),
-                init,
-            }),
-            token: ty.token,
+        Ok(VarDecl {
+            ty: Box::new(ty.clone()),
+            name: Box::new(name),
+            init,
         })
     }
 
@@ -396,6 +393,13 @@ impl<'src> Parser<'src> {
                     Ok(Node {
                         token,
                         kind: NodeKind::Expr(Expr::True), // Placeholder for now
+                    })
+                }
+                TokenKind::IntLiteral => {
+                    self.idx += 1;
+                    Ok(Node {
+                        token,
+                        kind: NodeKind::Expr(Expr::IntLiteral(token)),
                     })
                 }
                 TokenKind::LeftParen => {
@@ -651,12 +655,13 @@ impl<'src> Parser<'src> {
             match token.kind {
                 TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
                     // Variable declaration
-                    let var_decl_node = self.var_decl().expect("Expected variable declaration");
-                    let var_decl = match var_decl_node.kind {
-                        NodeKind::VarDecl(decl) => decl,
+                    let var_decl_node =
+                        self.var_decl_list().expect("Expected variable declaration");
+                    stmts.push(match var_decl_node.kind {
+                        NodeKind::VarDecl(decl) => Statement::VarDecl(decl),
+                        NodeKind::VarDeclList(decl_list) => Statement::VarDeclList(decl_list),
                         _ => panic!("Expected VarDecl"),
-                    };
-                    stmts.push(crate::ast::Statement::VarDecl(var_decl));
+                    });
                 }
                 TokenKind::Print => {
                     // Print statement
@@ -676,7 +681,7 @@ impl<'src> Parser<'src> {
                     match self.peek_n(1) {
                         Some(Ok(t)) => match t.kind {
                             TokenKind::Id => {
-                                let decl = self.var_decl()?;
+                                let decl = self.var_decl_list()?;
                                 let decl = match decl.kind {
                                     NodeKind::VarDecl(decl) => decl,
                                     _ => panic!("Expected VarDecl"),
