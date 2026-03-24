@@ -2,7 +2,14 @@ use lexer::token::{Token, TokenError, TokenKind};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
-    pub kind: Box<NodeKind>,
+    pub kind: NodeKind,
+    // TODO: remove this field, in favor of having a `token` field only on nodes with direct
+    // relationships to tokens. Maybe have a trait `TokenTrait` (horrible name) with a `token`
+    // method which returns an `Option<Token>` (nodes like `Program` would return `None` since they
+    // are not directly associated with any one specific token) or returns a `Token` by having
+    // nodes with no token associated return their first associated token (or any other logic).
+    // Whether to return `Option<Token>` or `Token` probably depends on what the test outputs
+    // expect
     pub token: Token,
 }
 
@@ -195,7 +202,7 @@ pub trait Show<'src> {
 
 impl<'src> Show<'src> for Node {
     fn show(&self, input: &'src str, indent: usize) -> String {
-        match &*self.kind {
+        match &self.kind {
             NodeKind::Program(program) => {
                 let mut result = "Program:\n".to_string();
                 for class in &program.classes {

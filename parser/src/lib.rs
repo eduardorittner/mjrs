@@ -43,14 +43,14 @@ impl<'src> Parser<'src> {
 
         // TODO: maybe make a macro which returns the type or errors?
         // instead of having to always match on returned nodes
-        let class_decl = match *class_node.kind {
+        let class_decl = match class_node.kind {
             NodeKind::ClassDecl(decl) => decl,
             _ => panic!("Expected ClassDecl"),
         };
         Ok(Node {
-            kind: Box::new(NodeKind::Program(crate::ast::Program {
+            kind: NodeKind::Program(crate::ast::Program {
                 classes: vec![class_decl],
-            })),
+            }),
             token: class_node.token,
         })
     }
@@ -80,7 +80,7 @@ impl<'src> Parser<'src> {
                     // Check if it's a variable or method declaration
                     // For now, let's just parse variable declarations
                     let var_decl_node = self.var_decl()?;
-                    let var_decl = match *var_decl_node.kind {
+                    let var_decl = match var_decl_node.kind {
                         NodeKind::VarDecl(decl) => decl,
                         _ => panic!("Expected VarDecl"),
                     };
@@ -89,7 +89,7 @@ impl<'src> Parser<'src> {
                 TokenKind::Public => {
                     // Method declaration
                     let method_decl_node = self.method_decl()?;
-                    match *method_decl_node.kind {
+                    match method_decl_node.kind {
                         NodeKind::MethodDecl(decl) => method_decls.push(decl),
                         _ => panic!("Expected MethodDecl"),
                     };
@@ -107,7 +107,7 @@ impl<'src> Parser<'src> {
         advance!(self, &[TokenKind::RightBrace])?;
 
         Ok(Node {
-            kind: Box::new(NodeKind::ClassDecl(crate::ast::ClassDecl {
+            kind: NodeKind::ClassDecl(crate::ast::ClassDecl {
                 name: Box::new(name),
                 token: class_token,
                 var_decls,
@@ -116,7 +116,7 @@ impl<'src> Parser<'src> {
                     stmts: vec![],
                     token: compound_start,
                 },
-            })),
+            }),
             token: class_token,
         })
     }
@@ -169,11 +169,11 @@ impl<'src> Parser<'src> {
         advance!(self, &[TokenKind::Semicolon])?;
 
         Ok(Node {
-            kind: Box::new(NodeKind::VarDecl(crate::ast::VarDecl {
+            kind: NodeKind::VarDecl(crate::ast::VarDecl {
                 ty: Box::new(ty.clone()),
                 name: Box::new(name),
                 init,
-            })),
+            }),
             token: ty.token,
         })
     }
@@ -277,11 +277,11 @@ impl<'src> Parser<'src> {
             let left_token = left.token;
 
             left = Node {
-                kind: Box::new(NodeKind::Expr(Expr::Binary {
+                kind: NodeKind::Expr(Expr::Binary {
                     op: token.kind,
                     left: Box::new(left),
                     right: Box::new(right),
-                })),
+                }),
                 token: left_token,
             };
         }
@@ -307,10 +307,10 @@ impl<'src> Parser<'src> {
 
                 expr = Node {
                     token: expr.token,
-                    kind: Box::new(NodeKind::Expr(Expr::FieldAccess {
+                    kind: NodeKind::Expr(Expr::FieldAccess {
                         object: Box::new(expr),
                         field: Box::new(field),
-                    })),
+                    }),
                 };
             } else {
                 break;
@@ -329,50 +329,48 @@ impl<'src> Parser<'src> {
                     let operand = self.primary_expr()?;
                     return Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::Unary {
+                        kind: NodeKind::Expr(Expr::Unary {
                             op: token.kind,
                             operand: Box::new(operand),
-                        })),
+                        }),
                     });
                 }
                 TokenKind::True => {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::True)),
+                        kind: NodeKind::Expr(Expr::True),
                     })
                 }
                 TokenKind::False => {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::False)),
+                        kind: NodeKind::Expr(Expr::False),
                     })
                 }
                 TokenKind::CharLiteral => {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::CharLiteral)),
+                        kind: NodeKind::Expr(Expr::CharLiteral),
                     })
                 }
                 TokenKind::This => {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::This)),
+                        kind: NodeKind::Expr(Expr::This),
                     })
                 }
                 TokenKind::Id => {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::Identifier(Box::new(
-                            crate::ast::Id {
-                                name: self.get_token_value(token).to_string(),
-                                token,
-                            },
-                        )))),
+                        kind: NodeKind::Expr(Expr::Identifier(Box::new(crate::ast::Id {
+                            name: self.get_token_value(token).to_string(),
+                            token,
+                        }))),
                     })
                 }
                 TokenKind::New => {
@@ -384,10 +382,10 @@ impl<'src> Parser<'src> {
                         advance!(self, &[TokenKind::RightParen])?;
                         Ok(Node {
                             token,
-                            kind: Box::new(NodeKind::Expr(Expr::New(Box::new(Type {
+                            kind: NodeKind::Expr(Expr::New(Box::new(Type {
                                 ty: TypeKind::Custom(id_token.token),
                                 token: id_token.token,
-                            })))),
+                            }))),
                         })
                     } else {
                         todo!()
@@ -397,7 +395,7 @@ impl<'src> Parser<'src> {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: Box::new(NodeKind::Expr(Expr::True)), // Placeholder for now
+                        kind: NodeKind::Expr(Expr::True), // Placeholder for now
                     })
                 }
                 TokenKind::LeftParen => {
@@ -497,7 +495,7 @@ impl<'src> Parser<'src> {
         println!("{name_token:?}");
 
         Ok(Node {
-            kind: Box::new({
+            kind: {
                 if name_token.kind == TokenKind::Main {
                     NodeKind::MethodDecl(MethodDecl::Main(MainMethodDecl {
                         ty: Box::new(return_type),
@@ -515,7 +513,7 @@ impl<'src> Parser<'src> {
                         token: public_token,
                     }))
                 }
-            }),
+            },
             token: public_token,
         })
     }
@@ -654,7 +652,7 @@ impl<'src> Parser<'src> {
                 TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
                     // Variable declaration
                     let var_decl_node = self.var_decl().expect("Expected variable declaration");
-                    let var_decl = match *var_decl_node.kind {
+                    let var_decl = match var_decl_node.kind {
                         NodeKind::VarDecl(decl) => decl,
                         _ => panic!("Expected VarDecl"),
                     };
@@ -679,7 +677,7 @@ impl<'src> Parser<'src> {
                         Some(Ok(t)) => match t.kind {
                             TokenKind::Id => {
                                 let decl = self.var_decl()?;
-                                let decl = match *decl.kind {
+                                let decl = match decl.kind {
                                     NodeKind::VarDecl(decl) => decl,
                                     _ => panic!("Expected VarDecl"),
                                 };
@@ -838,7 +836,7 @@ mod tests {
                 coords: Coords::new(1, 0),
             })],
             expected: Ok(Node {
-                kind: Box::new(NodeKind::Expr(Expr::True)),
+                kind: NodeKind::Expr(Expr::True),
                 token: Token {
                     kind: TokenKind::True,
                     range: (0, 4),
