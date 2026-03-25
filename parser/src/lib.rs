@@ -62,10 +62,7 @@ impl<'src> Parser<'src> {
 
         // Parse class name (identifier)
         let name_token = advance!(self, &[TokenKind::Id])?;
-        let name = crate::ast::Id {
-            name: self.get_token_value(name_token).to_string(),
-            token: name_token,
-        };
+        let name = Id(name_token);
 
         // Parse "{"
         let compound_start = advance!(self, &[TokenKind::LeftBrace])?;
@@ -156,10 +153,7 @@ impl<'src> Parser<'src> {
     /// Parses a single variable declaration after a type_specifier
     fn var_decl(&mut self, ty: Type) -> ParseResult<VarDecl> {
         let name_token = advance!(self, &[TokenKind::Id])?;
-        let name = crate::ast::Id {
-            name: self.get_token_value(name_token).to_string(),
-            token: name_token,
-        };
+        let name = Id(name_token);
 
         // Optional initializer expression
         let init = if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
@@ -297,10 +291,7 @@ impl<'src> Parser<'src> {
 
                 // Expect an identifier after the dot
                 let field_token = advance!(self, &[TokenKind::Id])?;
-                let field = crate::ast::Id {
-                    name: self.get_token_value(field_token).to_string(),
-                    token: field_token,
-                };
+                let field = Id(field_token);
 
                 expr = Node {
                     token: expr.token,
@@ -364,10 +355,7 @@ impl<'src> Parser<'src> {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: NodeKind::Expr(Expr::Identifier(crate::ast::Id {
-                            name: self.get_token_value(token).to_string(),
-                            token,
-                        })),
+                        kind: NodeKind::Expr(Expr::Identifier(Id(token))),
                     })
                 }
                 TokenKind::New => {
@@ -380,8 +368,8 @@ impl<'src> Parser<'src> {
                         Ok(Node {
                             token,
                             kind: NodeKind::Expr(Expr::New(Type {
-                                ty: TypeKind::Custom(id_token.token),
-                                token: id_token.token,
+                                ty: TypeKind::Custom(id_token.0),
+                                token: id_token.0,
                             })),
                         })
                     } else {
@@ -479,10 +467,7 @@ impl<'src> Parser<'src> {
 
         // Parse method name
         let name_token = advance!(self, &[TokenKind::Id, TokenKind::Main])?;
-        let name = crate::ast::Id {
-            name: self.get_token_value(name_token).to_string(),
-            token: name_token,
-        };
+        let name = Id(name_token);
 
         // Parse "("
         advance!(self, &[TokenKind::LeftParen])?;
@@ -572,10 +557,7 @@ impl<'src> Parser<'src> {
                 }
 
                 let name_token = advance!(self, &[TokenKind::Id]).expect("Expected parameter name");
-                let param_name = crate::ast::Id {
-                    name: self.get_token_value(name_token).to_string(),
-                    token: name_token,
-                };
+                let param_name = Id(name_token);
 
                 params.push((param_type, param_name));
 
@@ -627,10 +609,7 @@ impl<'src> Parser<'src> {
 
                         let name_token =
                             advance!(self, &[TokenKind::Id]).expect("Expected parameter name");
-                        let param_name = crate::ast::Id {
-                            name: self.get_token_value(name_token).to_string(),
-                            token: name_token,
-                        };
+                        let param_name = Id(name_token);
 
                         params.push((param_type, param_name));
                     } else {
@@ -723,10 +702,7 @@ impl<'src> Parser<'src> {
 
     fn identifier(&mut self) -> Option<ParseResult<Id>> {
         if let Some(token) = self.advance_if(&[TokenKind::Id]) {
-            Some(Ok(Id {
-                name: self.get_token_value(token).to_string(),
-                token,
-            }))
+            Some(Ok(Id(token)))
         } else {
             None
         }
@@ -759,13 +735,7 @@ impl<'src> Parser<'src> {
             if let Some(tok) = self.advance_if(&[TokenKind::Eq, TokenKind::Comma]) {
                 match tok.kind {
                     TokenKind::Eq => {
-                        results.push((
-                            Id {
-                                name: self.get_token_value(var_name).to_string(),
-                                token: var_name,
-                            },
-                            Some(self.assignment_expr()?),
-                        ));
+                        results.push((Id(var_name), Some(self.assignment_expr()?)));
 
                         if let Some(_) = self.advance_if(&[TokenKind::Comma]) {
                         } else {
@@ -773,25 +743,13 @@ impl<'src> Parser<'src> {
                         }
                     }
                     TokenKind::Comma => {
-                        results.push((
-                            Id {
-                                name: self.get_token_value(var_name).to_string(),
-                                token: var_name,
-                            },
-                            None,
-                        ));
+                        results.push((Id(var_name), None));
                         continue;
                     }
                     _ => unreachable!(),
                 }
             } else {
-                results.push((
-                    Id {
-                        name: self.get_token_value(var_name).to_string(),
-                        token: var_name,
-                    },
-                    None,
-                ));
+                results.push((Id(var_name), None));
             }
         }
 

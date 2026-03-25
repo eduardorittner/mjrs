@@ -56,18 +56,8 @@ pub struct ClassDecl {
     pub body: Compound,
 }
 
-// TODO: remove `name` field since it's redundant
 #[derive(Debug, Clone, PartialEq)]
-pub struct Id {
-    pub name: String,
-    pub token: Token,
-}
-
-impl Id {
-    pub fn new(name: String, token: Token) -> Self {
-        Id { name, token }
-    }
-}
+pub struct Id(pub Token);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Type {
@@ -193,17 +183,6 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssignmentExpr {}
 
-/// Format trait for a generic node
-pub trait Show<'src> {
-    const TAB: usize = 4;
-
-    fn indent(indent: usize) -> String {
-        " ".repeat(indent)
-    }
-
-    fn show(&self, input: &'src str, indent: usize) -> String;
-}
-
 // TODO: better name?
 pub trait NodeToken {
     /// Returns the (first) token associated with a node
@@ -212,6 +191,24 @@ pub trait NodeToken {
     /// the output still expects them to be associated with a node, so we use this trait to do
     /// that.
     fn token(&self) -> Token;
+}
+
+impl NodeToken for VarDecl {
+    fn token(&self) -> Token {
+        self.ty.token
+    }
+}
+
+/// Format trait for a generic node
+// TODO: add requirement on `NodeToken` trait
+pub trait Show<'src> {
+    const TAB: usize = 4;
+
+    fn indent(indent: usize) -> String {
+        " ".repeat(indent)
+    }
+
+    fn show(&self, input: &'src str, indent: usize) -> String;
 }
 
 impl<'src> Show<'src> for Node {
@@ -324,7 +321,7 @@ impl<'src> Show<'src> for Node {
                     format!(
                         "{}ID: {} {}\n",
                         Self::indent(indent),
-                        id.name,
+                        id.0.value(input),
                         self.token.formatted_pos()
                     )
                 }
@@ -402,7 +399,7 @@ impl<'src> Show<'src> for ClassDecl {
         let mut result = format!(
             "{}ClassDecl: ID(name={}) @ {}:{}\n",
             Self::indent(indent),
-            self.name.name,
+            self.token.value(input),
             self.token.line(),
             self.token.column()
         );
@@ -496,8 +493,8 @@ impl<'src> Show<'src> for Id {
         format!(
             "{}ID: {} {}\n",
             Self::indent(indent),
-            self.token.value(input),
-            self.token.formatted_pos()
+            self.0.value(input),
+            self.0.formatted_pos()
         )
     }
 }
@@ -525,8 +522,8 @@ impl<'src> Show<'src> for VarDecl {
         let mut result = format!(
             "{}VarDecl: ID(name={}) {}\n",
             Self::indent(indent),
-            self.name.name,
-            self.name.token.formatted_pos()
+            self.token().value(input),
+            self.name.0.formatted_pos()
         );
 
         result.push_str(&self.ty.show(input, indent + Self::TAB));
@@ -554,7 +551,7 @@ impl<'src> Show<'src> for ParamList {
             if i > 0 {
                 result.push_str(", ");
             }
-            result.push_str(&format!("{} {}", ty.show(input, indent), id.name));
+            result.push_str(&format!("{} {}", ty.show(input, indent), id.0.value(input)));
         }
         result
     }
