@@ -129,6 +129,7 @@ pub enum Statement {
     VarDecl(VarDecl),
     Print(Print),
     Expression(Box<Node>),
+    Break(Token),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -489,6 +490,9 @@ impl<'src> Show<'src> for Statement {
 
                 result.push_str(&node.item.show(input, indent + Self::TAB));
                 result
+            }
+            Statement::Break(token) => {
+                format!("{}Break: {}\n", Self::indent(indent), token.formatted_pos())
             }
             Statement::Expression(node) => todo!(),
         }

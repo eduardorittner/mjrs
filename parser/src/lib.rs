@@ -607,6 +607,15 @@ impl<'src> Parser<'src> {
                         token: print,
                     }));
                 }
+                TokenKind::Break => {
+                    let break_token =
+                        advance!(self, &[TokenKind::Break]).expect("checked before-hand");
+
+                    advance!(self, &[TokenKind::Semicolon])
+                        .expect("expected ';' after 'break' keyword");
+
+                    stmts.push(Statement::Break(break_token));
+                }
                 TokenKind::Id => {
                     // Either expression statement or declaration
                     match self.peek_n(1) {
