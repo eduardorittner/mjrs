@@ -286,14 +286,7 @@ impl<'src> Show<'src> for Node {
                 Expr::True(_) => "True".to_string(),
                 Expr::False(_) => "False".to_string(),
                 Expr::This(_) => "This".to_string(),
-                Expr::Identifier(id) => {
-                    format!(
-                        "{}ID: {} {}\n",
-                        Self::indent(indent),
-                        id.0.value(input),
-                        id.0.formatted_pos()
-                    )
-                }
+                Expr::Identifier(id) => id.show(input, indent),
                 Expr::New { token, ty } => format!(
                     "{}NewObject: {}\n{}",
                     Self::indent(indent),
@@ -515,12 +508,7 @@ impl<'src> Show<'src> for Expr {
             Expr::This(token) => {
                 format!("{}This: {}\n", Self::indent(indent), token.formatted_pos())
             }
-            Expr::Identifier(id) => format!(
-                "{}ID: {} {}\n",
-                Self::indent(indent),
-                id.0.value(input),
-                id.0.formatted_pos()
-            ),
+            Expr::Identifier(id) => id.show(input, indent),
             Expr::New { token, ty } => todo!(),
             Expr::Unary { op, operand } => todo!(),
             Expr::Binary {
