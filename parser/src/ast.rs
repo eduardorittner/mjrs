@@ -159,6 +159,8 @@ pub enum Expr {
         operand: Box<Node>,
     },
     Binary {
+        /// Binary expression's first token (can be either `left.token()` or an opening paren)
+        token: Token,
         op: Token,
         left: Box<Node>,
         right: Box<Node>,
@@ -360,28 +362,19 @@ impl<'src> Show<'src> for Node {
                         operand.show(input, indent + Self::TAB)
                     )
                 }
-                Expr::Binary { op, left, right } => {
-                    let op_str = match op.kind {
-                        TokenKind::Plus => "+",
-                        TokenKind::Minus => "-",
-                        TokenKind::Star => "*",
-                        TokenKind::Slash => "/",
-                        TokenKind::Mod => "%",
-                        TokenKind::And => "&&",
-                        TokenKind::Or => "||",
-                        TokenKind::EqEq => "==",
-                        TokenKind::NotEq => "!=",
-                        TokenKind::Greater => ">",
-                        TokenKind::Less => "<",
-                        TokenKind::GreaterEq => ">=",
-                        TokenKind::LessEq => "<=",
-                        _ => "?",
-                    };
+                Expr::Binary {
+                    token,
+                    op,
+                    left,
+                    right,
+                } => {
                     format!(
-                        "BinaryOp: {} @ {}:{}",
-                        op_str,
-                        left.token().line(),
-                        left.token().column()
+                        "{}BinaryOp: {} {}\n{}{}",
+                        Self::indent(indent),
+                        op.value(input),
+                        token.formatted_pos(),
+                        left.show(input, indent + Self::TAB),
+                        right.show(input, indent + Self::TAB),
                     )
                 }
                 Expr::FieldAccess { object, field } => {
@@ -568,5 +561,28 @@ impl<'src> Show<'src> for ParamList {
             result.push_str(&format!("{} {}", ty.show(input, indent), id.0.value(input)));
         }
         result
+    }
+}
+
+impl Expr {
+    /// Updates `self`'s `token` field.
+    ///
+    /// This is mainly used for parsing expressions inside parentheses, to make the inside
+    /// expression's token point to the first opening paren.
+    pub fn update_token(self, token: Token) -> Self {
+        match self {
+            Expr::Binary {
+                token: _old_token,
+                op,
+                left,
+                right,
+            } => Expr::Binary {
+                token,
+                op,
+                left,
+                right,
+            },
+            _ => unreachable!(),
+        }
     }
 }

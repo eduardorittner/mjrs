@@ -233,6 +233,7 @@ impl<'src> Parser<'src> {
     }
 
     fn parse_expr(&mut self, min_precedence: u8) -> NodeResult {
+        let first_token = self.peek().unwrap().unwrap();
         let mut left = self.primary_expr()?;
 
         while let Some(Ok(token)) = self.peek() {
@@ -252,10 +253,8 @@ impl<'src> Parser<'src> {
             let next_precedence = precedence + 1;
             let right = self.parse_expr(next_precedence)?;
 
-            // Save the token before moving left
-            let left_token = left.token();
-
             left = Node::Expr(Expr::Binary {
+                token: first_token,
                 op: token,
                 left: Box::new(left),
                 right: Box::new(right),
@@ -353,6 +352,8 @@ impl<'src> Parser<'src> {
                     self.idx += 1; // consume '('
                     let expr = self.expr()?;
                     advance!(self, &[TokenKind::RightParen])?; // consume ')'
+                    // TODO: update expr.token here
+
                     Ok(expr)
                 }
                 _ => Err(NodeErr::Unexpected {
