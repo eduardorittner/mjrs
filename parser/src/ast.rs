@@ -59,13 +59,13 @@ pub struct ClassDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Id(pub Token);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Type {
     pub ty: TypeKind,
     pub token: Token,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TypeKind {
     Void,
     Boolean,
@@ -331,17 +331,12 @@ impl<'src> Show<'src> for Node {
                     ty.show(&input, indent + Self::TAB)
                 ),
                 Expr::Unary { op, operand } => {
-                    let op_str = match op.kind {
-                        TokenKind::Not => "!",
-                        TokenKind::Plus => "+",
-                        TokenKind::Minus => "-",
-                        _ => "?",
-                    };
                     format!(
-                        "UnaryOp: {} @ {}:{}",
-                        op_str,
-                        operand.token.line(),
-                        operand.token.column()
+                        "{}UnaryOp: {} {}\n{}",
+                        Self::indent(indent),
+                        op.value(input),
+                        op.formatted_pos(),
+                        operand.show(input, indent + Self::TAB)
                     )
                 }
                 Expr::Binary { op, left, right } => {

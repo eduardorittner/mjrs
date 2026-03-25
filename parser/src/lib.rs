@@ -124,7 +124,7 @@ impl<'src> Parser<'src> {
         // Parse type
         let ty = self.type_specifier().ok_or(NodeErr::Eof)??;
 
-        while let Ok(var_decl) = self.var_decl(ty.clone()) {
+        while let Ok(var_decl) = self.var_decl(ty) {
             decls.push(var_decl);
 
             if let Some(_comma) = self.advance_if(&[TokenKind::Comma]) {
@@ -312,7 +312,9 @@ impl<'src> Parser<'src> {
     fn primary_expr_without_field_access(&mut self) -> NodeResult {
         if let Some(Ok(token)) = self.peek() {
             match token.kind {
-                TokenKind::Minus | TokenKind::Not => {
+                // Unary operators
+                TokenKind::Minus | TokenKind::Not | TokenKind::Plus => {
+                    println!("token '{}', {:?}", token.value(self.input), token);
                     self.idx += 1; // consume operator
                     let operand = self.primary_expr()?;
                     return Ok(Node {
@@ -359,7 +361,6 @@ impl<'src> Parser<'src> {
                     })
                 }
                 TokenKind::New => {
-                    println!("HA");
                     self.idx += 1;
 
                     if let Some(Ok(id_token)) = self.identifier() {
@@ -413,7 +414,6 @@ impl<'src> Parser<'src> {
                     line: line!(),
                     file: file!(),
                 }),
-                _ => todo!(),
             }
         } else {
             todo!()
@@ -481,8 +481,6 @@ impl<'src> Parser<'src> {
         // Parse method body
         let body = self.compound_stmt()?;
 
-        println!("{name_token:?}");
-
         Ok(Node {
             kind: {
                 if name_token.kind == TokenKind::Main {
@@ -527,7 +525,7 @@ impl<'src> Parser<'src> {
                 .expect("Expected parameter type");
 
                 // Check for array type
-                let mut param_type = match type_token.kind {
+                let param_type = match type_token.kind {
                     TokenKind::Int => crate::ast::Type {
                         ty: crate::ast::TypeKind::Int,
                         token: type_token,
@@ -692,10 +690,8 @@ impl<'src> Parser<'src> {
     }
 
     fn compound_declaration(&mut self) -> ParseResult<VarDeclList> {
-        while let Some(Ok(token)) = self.type_specifier() {
+        while let Some(Ok(_token)) = self.type_specifier() {
             let declarator_list = self.init_declarator_list()?;
-
-            declarator_list.into_iter().map(|(name, init)| {});
         }
         todo!()
     }
