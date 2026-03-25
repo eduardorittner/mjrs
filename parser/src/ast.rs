@@ -72,8 +72,7 @@ pub enum TypeKind {
     Char,
     Int,
     String,
-    // TODO: remove this
-    Custom(Token),
+    Custom,
 }
 
 impl TryFrom<Token> for TypeKind {
@@ -86,7 +85,7 @@ impl TryFrom<Token> for TypeKind {
             TokenKind::Char => Ok(TypeKind::Char),
             TokenKind::Boolean => Ok(TypeKind::Boolean),
             TokenKind::Void => Ok(TypeKind::Void),
-            TokenKind::Id => Ok(TypeKind::Custom(value)),
+            TokenKind::Id => Ok(TypeKind::Custom),
             _ => panic!("token is not valid type specifier"),
         }
     }
@@ -510,7 +509,7 @@ impl<'src> Show<'src> for Type {
                 TypeKind::Char => "char".to_string(),
                 TypeKind::Boolean => "boolean".to_string(),
                 TypeKind::String => "String".to_string(),
-                TypeKind::Custom(tok) => format!("ID(name={})", tok.value(input).to_string()),
+                TypeKind::Custom => format!("ID(name={})", self.token.value(input).to_string()),
             },
             self.token.formatted_pos()
         )

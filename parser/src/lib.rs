@@ -368,7 +368,7 @@ impl<'src> Parser<'src> {
                         Ok(Node {
                             token,
                             kind: NodeKind::Expr(Expr::New(Type {
-                                ty: TypeKind::Custom(id_token.0),
+                                ty: TypeKind::Custom,
                                 token: id_token.0,
                             })),
                         })
@@ -447,7 +447,7 @@ impl<'src> Parser<'src> {
         )?;
         let return_type = match return_type_token.kind {
             TokenKind::Void => crate::ast::Type {
-                ty: crate::ast::TypeKind::Custom(return_type_token),
+                ty: crate::ast::TypeKind::Custom,
                 token: return_type_token,
             },
             TokenKind::Int => crate::ast::Type {
