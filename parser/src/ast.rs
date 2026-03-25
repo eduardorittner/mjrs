@@ -186,6 +186,10 @@ pub enum Expr {
         name: Id,
         // TODO: add `args`
     },
+    Assignment {
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -236,6 +240,7 @@ impl NodeToken for Expr {
             | Expr::This(token) => *token,
             Expr::FieldAccess { object, field } => todo!(),
             Expr::MethodCall { object, name } => object.token(),
+            Expr::Assignment { lhs, rhs } => lhs.token(),
         }
     }
 }
@@ -268,74 +273,8 @@ impl<'src> Show<'src> for Node {
                 MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
                 MethodDecl::Regular(method) => method.show(input, indent + Self::TAB),
             },
-            Node::Expr(expr) => match expr {
-                Expr::IntLiteral(tok) => format!(
-                    "{}Constant: int, {} {}\n",
-                    Self::indent(indent),
-                    tok.value(input),
-                    tok.formatted_pos()
-                ),
-                Expr::CharLiteral(tok) => {
-                    format!(
-                        "{}Constant: char, {} {}\n",
-                        Self::indent(indent),
-                        tok.value(input),
-                        tok.formatted_pos(),
-                    )
-                }
-                Expr::True(_) => "True".to_string(),
-                Expr::False(_) => "False".to_string(),
-                Expr::This(_) => "This".to_string(),
-                Expr::Identifier(id) => id.show(input, indent),
-                Expr::New { token, ty } => format!(
-                    "{}NewObject: {}\n{}",
-                    Self::indent(indent),
-                    token.formatted_pos(),
-                    ty.show(&input, indent + Self::TAB)
-                ),
-                Expr::Unary { op, operand } => {
-                    format!(
-                        "{}UnaryOp: {} {}\n{}",
-                        Self::indent(indent),
-                        op.value(input),
-                        op.formatted_pos(),
-                        operand.show(input, indent + Self::TAB)
-                    )
-                }
-                Expr::Binary {
-                    token,
-                    op,
-                    left,
-                    right,
-                } => {
-                    format!(
-                        "{}BinaryOp: {} {}\n{}{}",
-                        Self::indent(indent),
-                        op.value(input),
-                        token.formatted_pos(),
-                        left.show(input, indent + Self::TAB),
-                        right.show(input, indent + Self::TAB),
-                    )
-                }
-                Expr::FieldAccess { object, field } => {
-                    format!(
-                        "{}FieldAccess: {}\n{}{}",
-                        Self::indent(indent),
-                        object.token().formatted_pos(),
-                        object.show(input, indent + Self::TAB),
-                        field.show(input, indent + Self::TAB)
-                    )
-                }
-                Expr::MethodCall { object, name } => {
-                    format!(
-                        "{}MethodCall: {}\n{}{}",
-                        Self::indent(indent),
-                        object.token().formatted_pos(),
-                        object.show(input, indent + Self::TAB),
-                        name.show(input, indent + Self::TAB)
-                    )
-                }
-            },
+            // TODO: replace this match with expr.show(input, indent)
+            Node::Expr(expr) => expr.show(input, indent),
             _ => format!("Node({:?})", self.token()),
         }
     }
@@ -501,30 +440,83 @@ impl<'src> Show<'src> for Type {
 impl<'src> Show<'src> for Expr {
     fn show(&self, input: &'src str, indent: usize) -> String {
         match self {
-            Expr::IntLiteral(token) => todo!(),
-            Expr::CharLiteral(token) => todo!(),
-            Expr::True(token) => todo!(),
-            Expr::False(token) => todo!(),
+            Expr::IntLiteral(tok) => format!(
+                "{}Constant: int, {} {}\n",
+                Self::indent(indent),
+                tok.value(input),
+                tok.formatted_pos()
+            ),
+            Expr::CharLiteral(tok) => {
+                format!(
+                    "{}Constant: char, {} {}\n",
+                    Self::indent(indent),
+                    tok.value(input),
+                    tok.formatted_pos(),
+                )
+            }
+            Expr::True(_) => "True".to_string(),
+            Expr::False(_) => "False".to_string(),
             Expr::This(token) => {
                 format!("{}This: {}\n", Self::indent(indent), token.formatted_pos())
             }
             Expr::Identifier(id) => id.show(input, indent),
-            Expr::New { token, ty } => todo!(),
-            Expr::Unary { op, operand } => todo!(),
+            Expr::New { token, ty } => format!(
+                "{}NewObject: {}\n{}",
+                Self::indent(indent),
+                token.formatted_pos(),
+                ty.show(&input, indent + Self::TAB)
+            ),
+            Expr::Unary { op, operand } => {
+                format!(
+                    "{}UnaryOp: {} {}\n{}",
+                    Self::indent(indent),
+                    op.value(input),
+                    op.formatted_pos(),
+                    operand.show(input, indent + Self::TAB)
+                )
+            }
             Expr::Binary {
                 token,
                 op,
                 left,
                 right,
-            } => todo!(),
-            Expr::FieldAccess { object, field } => "".to_string(),
-            Expr::MethodCall { object, name } => format!(
-                "{}MethodCall: {}\n{}{}",
-                Self::indent(indent),
-                object.token().formatted_pos(),
-                object.show(input, indent + Self::TAB),
-                name.show(input, indent + Self::TAB)
-            ),
+            } => {
+                format!(
+                    "{}BinaryOp: {} {}\n{}{}",
+                    Self::indent(indent),
+                    op.value(input),
+                    token.formatted_pos(),
+                    left.show(input, indent + Self::TAB),
+                    right.show(input, indent + Self::TAB),
+                )
+            }
+            Expr::FieldAccess { object, field } => {
+                format!(
+                    "{}FieldAccess: {}\n{}{}",
+                    Self::indent(indent),
+                    object.token().formatted_pos(),
+                    object.show(input, indent + Self::TAB),
+                    field.show(input, indent + Self::TAB)
+                )
+            }
+            Expr::MethodCall { object, name } => {
+                format!(
+                    "{}MethodCall: {}\n{}{}",
+                    Self::indent(indent),
+                    object.token().formatted_pos(),
+                    object.show(input, indent + Self::TAB),
+                    name.show(input, indent + Self::TAB)
+                )
+            }
+            Expr::Assignment { lhs, rhs } => {
+                format!(
+                    "{}Assignment: = {}\n{}{}",
+                    Self::indent(indent),
+                    lhs.token().formatted_pos(),
+                    lhs.show(input, indent + Self::TAB),
+                    rhs.show(input, indent + Self::TAB)
+                )
+            }
         }
     }
 }

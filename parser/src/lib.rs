@@ -2,8 +2,8 @@ use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
     AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
-    NodeToken, ParseResult, Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl,
-    VarDeclList,
+    NodeToken, ParseResult, Print, RegularMethodDecl, Return, Show, Statement, Type, TypeKind,
+    VarDecl, VarDeclList,
 };
 
 pub mod ast;
@@ -131,6 +131,8 @@ impl<'src> Parser<'src> {
         // Parse ";"
         advance!(self, &[TokenKind::Semicolon])?;
 
+        println!("me here");
+
         if decls.len() == 1 {
             Ok(Node::VarDecl(decls.into_iter().next().unwrap()))
         } else {
@@ -207,6 +209,8 @@ impl<'src> Parser<'src> {
     }
 
     /// Returns the n-th next token, without consuming it
+    ///
+    /// NOTE: `peek_n(1)` is equivalent to `peek()`
     fn peek_n(&mut self, n: usize) -> Option<TokenResult> {
         let idx = self.idx + n - 1;
         if idx != self.tokens.len() {
@@ -243,6 +247,17 @@ impl<'src> Parser<'src> {
 
         while let Some(Ok(token)) = self.peek() {
             if !token.kind.is_binary_operator() {
+                // Assignment expression
+                if token.kind == TokenKind::Eq {
+                    advance!(self, &[TokenKind::Eq])?;
+                    let right = self.expr()?;
+
+                    left = Expr::Assignment {
+                        lhs: Box::new(left),
+                        rhs: Box::new(right),
+                    };
+                }
+
                 break;
             }
 
@@ -633,7 +648,7 @@ impl<'src> Parser<'src> {
                 }
                 TokenKind::Id => {
                     // Either expression statement or declaration
-                    match self.peek_n(1) {
+                    match self.peek_n(2) {
                         Some(Ok(t)) => match t.kind {
                             TokenKind::Id => {
                                 let decl = self.var_decl_list()?;
