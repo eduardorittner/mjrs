@@ -1,10 +1,5 @@
 use lexer::token::{Token, TokenError, TokenKind};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Node {
-    pub kind: NodeKind,
-}
-
 // TODO: implement pretty printing for better error reporting
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeErr {
@@ -23,7 +18,7 @@ pub type ParseResult<T> = Result<T, NodeErr>;
 pub type NodeResult = ParseResult<Node>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum NodeKind {
+pub enum Node {
     Program(Program),
     ClassDecl(ClassDecl),
     MethodDecl(MethodDecl),
@@ -189,14 +184,14 @@ pub trait NodeToken {
 
 impl NodeToken for Node {
     fn token(&self) -> Token {
-        match &self.kind {
-            NodeKind::Program(program) => todo!(),
-            NodeKind::ClassDecl(class_decl) => todo!(),
-            NodeKind::MethodDecl(method_decl) => todo!(),
-            NodeKind::VarDeclList(var_decl_list) => todo!(),
-            NodeKind::VarDecl(var_decl) => todo!(),
-            NodeKind::Expr(expr) => expr.token(),
-            NodeKind::Statement(statement) => todo!(),
+        match &self {
+            Node::Program(program) => todo!(),
+            Node::ClassDecl(class_decl) => todo!(),
+            Node::MethodDecl(method_decl) => todo!(),
+            Node::VarDeclList(var_decl_list) => todo!(),
+            Node::VarDecl(var_decl) => todo!(),
+            Node::Expr(expr) => expr.token(),
+            Node::Statement(statement) => todo!(),
         }
     }
 }
@@ -238,17 +233,17 @@ pub trait Show<'src> {
 
 impl<'src> Show<'src> for Node {
     fn show(&self, input: &'src str, indent: usize) -> String {
-        match &self.kind {
-            NodeKind::Program(program) => {
+        match &self {
+            Node::Program(program) => {
                 let mut result = "Program:\n".to_string();
                 for class in &program.classes {
                     result.push_str(&class.show(input, indent + Self::TAB));
                 }
                 result
             }
-            NodeKind::ClassDecl(class_decl) => class_decl.show(input, indent),
-            NodeKind::VarDecl(var_decl) => var_decl.show(input, indent),
-            NodeKind::MethodDecl(method_decl) => {
+            Node::ClassDecl(class_decl) => class_decl.show(input, indent),
+            Node::VarDecl(var_decl) => var_decl.show(input, indent),
+            Node::MethodDecl(method_decl) => {
                 match method_decl {
                     MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
                     MethodDecl::Regular(method) => method.show(input, indent),
@@ -324,7 +319,7 @@ impl<'src> Show<'src> for Node {
                 //
                 // result
             }
-            NodeKind::Expr(expr) => match expr {
+            Node::Expr(expr) => match expr {
                 Expr::IntLiteral(tok) => format!(
                     "{}Constant: int, {} {}\n",
                     Self::indent(indent),

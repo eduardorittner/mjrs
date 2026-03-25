@@ -1,9 +1,9 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeKind,
-    NodeResult, NodeToken, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind,
-    VarDecl, VarDeclList,
+    AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
+    NodeToken, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind, VarDecl,
+    VarDeclList,
 };
 
 pub mod ast;
@@ -44,15 +44,13 @@ impl<'src> Parser<'src> {
 
         // TODO: maybe make a macro which returns the type or errors?
         // instead of having to always match on returned nodes
-        let class_decl = match class_node.kind {
-            NodeKind::ClassDecl(decl) => decl,
+        let class_decl = match class_node {
+            Node::ClassDecl(decl) => decl,
             _ => panic!("Expected ClassDecl"),
         };
-        Ok(Node {
-            kind: NodeKind::Program(crate::ast::Program {
-                classes: vec![class_decl],
-            }),
-        })
+        Ok(Node::Program(crate::ast::Program {
+            classes: vec![class_decl],
+        }))
     }
 
     fn class_decl(&mut self) -> NodeResult {
@@ -77,8 +75,8 @@ impl<'src> Parser<'src> {
                     // Check if it's a variable or method declaration
                     // For now, let's just parse variable declarations
                     let var_decl_node = self.var_decl_list()?;
-                    let var_decl = match var_decl_node.kind {
-                        NodeKind::VarDecl(decl) => decl,
+                    let var_decl = match var_decl_node {
+                        Node::VarDecl(decl) => decl,
                         _ => panic!("Expected VarDecl"),
                     };
                     var_decls.push(var_decl);
@@ -86,8 +84,8 @@ impl<'src> Parser<'src> {
                 TokenKind::Public => {
                     // Method declaration
                     let method_decl_node = self.method_decl()?;
-                    match method_decl_node.kind {
-                        NodeKind::MethodDecl(decl) => method_decls.push(decl),
+                    match method_decl_node {
+                        Node::MethodDecl(decl) => method_decls.push(decl),
                         _ => panic!("Expected MethodDecl"),
                     };
                 }
@@ -103,18 +101,16 @@ impl<'src> Parser<'src> {
         // Parse "}"
         advance!(self, &[TokenKind::RightBrace])?;
 
-        Ok(Node {
-            kind: NodeKind::ClassDecl(crate::ast::ClassDecl {
-                name: Box::new(name),
-                token: class_token,
-                var_decls,
-                method_decls,
-                body: crate::ast::Compound {
-                    stmts: vec![],
-                    token: compound_start,
-                },
-            }),
-        })
+        Ok(Node::ClassDecl(crate::ast::ClassDecl {
+            name: Box::new(name),
+            token: class_token,
+            var_decls,
+            method_decls,
+            body: crate::ast::Compound {
+                stmts: vec![],
+                token: compound_start,
+            },
+        }))
     }
 
     fn var_decl_list(&mut self) -> NodeResult {
@@ -136,13 +132,9 @@ impl<'src> Parser<'src> {
         advance!(self, &[TokenKind::Semicolon])?;
 
         if decls.len() == 1 {
-            Ok(Node {
-                kind: NodeKind::VarDecl(decls.into_iter().next().unwrap()),
-            })
+            Ok(Node::VarDecl(decls.into_iter().next().unwrap()))
         } else {
-            Ok(Node {
-                kind: NodeKind::VarDeclList(VarDeclList { decls }),
-            })
+            Ok(Node::VarDeclList(VarDeclList { decls }))
         }
     }
 
@@ -263,13 +255,11 @@ impl<'src> Parser<'src> {
             // Save the token before moving left
             let left_token = left.token();
 
-            left = Node {
-                kind: NodeKind::Expr(Expr::Binary {
-                    op: token,
-                    left: Box::new(left),
-                    right: Box::new(right),
-                }),
-            };
+            left = Node::Expr(Expr::Binary {
+                op: token,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
         }
 
         Ok(left)
@@ -288,12 +278,10 @@ impl<'src> Parser<'src> {
                 let field_token = advance!(self, &[TokenKind::Id])?;
                 let field = Id(field_token);
 
-                expr = Node {
-                    kind: NodeKind::Expr(Expr::FieldAccess {
-                        object: Box::new(expr),
-                        field: field,
-                    }),
-                };
+                expr = Node::Expr(Expr::FieldAccess {
+                    object: Box::new(expr),
+                    field: field,
+                });
             } else {
                 break;
             }
@@ -311,42 +299,30 @@ impl<'src> Parser<'src> {
                     println!("token '{}', {:?}", token.value(self.input), token);
                     self.idx += 1; // consume operator
                     let operand = self.primary_expr()?;
-                    return Ok(Node {
-                        kind: NodeKind::Expr(Expr::Unary {
-                            op: token,
-                            operand: Box::new(operand),
-                        }),
-                    });
+                    return Ok(Node::Expr(Expr::Unary {
+                        op: token,
+                        operand: Box::new(operand),
+                    }));
                 }
                 TokenKind::True => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::True(token)),
-                    })
+                    Ok(Node::Expr(Expr::True(token)))
                 }
                 TokenKind::False => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::False(token)),
-                    })
+                    Ok(Node::Expr(Expr::False(token)))
                 }
                 TokenKind::CharLiteral => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::CharLiteral(token)),
-                    })
+                    Ok(Node::Expr(Expr::CharLiteral(token)))
                 }
                 TokenKind::This => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::This(token)),
-                    })
+                    Ok(Node::Expr(Expr::This(token)))
                 }
                 TokenKind::Id => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::Identifier(Id(token))),
-                    })
+                    Ok(Node::Expr(Expr::Identifier(Id(token))))
                 }
                 TokenKind::New => {
                     self.idx += 1;
@@ -354,30 +330,24 @@ impl<'src> Parser<'src> {
                     if let Some(Ok(id_token)) = self.identifier() {
                         advance!(self, &[TokenKind::LeftParen])?;
                         advance!(self, &[TokenKind::RightParen])?;
-                        Ok(Node {
-                            kind: NodeKind::Expr(Expr::New {
-                                token,
-                                ty: Type {
-                                    ty: TypeKind::Custom,
-                                    token: id_token.0,
-                                },
-                            }),
-                        })
+                        Ok(Node::Expr(Expr::New {
+                            token,
+                            ty: Type {
+                                ty: TypeKind::Custom,
+                                token: id_token.0,
+                            },
+                        }))
                     } else {
                         todo!()
                     }
                 }
                 TokenKind::StringLiteral => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::True(token)), // Placeholder for now
-                    })
+                    Ok(Node::Expr(Expr::True(token))) // Placeholder for now)
                 }
                 TokenKind::IntLiteral => {
                     self.idx += 1;
-                    Ok(Node {
-                        kind: NodeKind::Expr(Expr::IntLiteral(token)),
-                    })
+                    Ok(Node::Expr(Expr::IntLiteral(token)))
                 }
                 TokenKind::LeftParen => {
                     self.idx += 1; // consume '('
@@ -469,26 +439,22 @@ impl<'src> Parser<'src> {
         // Parse method body
         let body = self.compound_stmt()?;
 
-        Ok(Node {
-            kind: {
-                if name_token.kind == TokenKind::Main {
-                    NodeKind::MethodDecl(MethodDecl::Main(MainMethodDecl {
-                        ty: Box::new(return_type),
-                        name: Box::new(name),
-                        param_list: Box::new(param_list),
-                        body,
-                        token: public_token,
-                    }))
-                } else {
-                    NodeKind::MethodDecl(MethodDecl::Regular(RegularMethodDecl {
-                        ty: Box::new(return_type),
-                        name: Box::new(name),
-                        param_list: Box::new(param_list),
-                        body,
-                        token: public_token,
-                    }))
-                }
-            },
+        Ok(if name_token.kind == TokenKind::Main {
+            Node::MethodDecl(MethodDecl::Main(MainMethodDecl {
+                ty: Box::new(return_type),
+                name: Box::new(name),
+                param_list: Box::new(param_list),
+                body,
+                token: public_token,
+            }))
+        } else {
+            Node::MethodDecl(MethodDecl::Regular(RegularMethodDecl {
+                ty: Box::new(return_type),
+                name: Box::new(name),
+                param_list: Box::new(param_list),
+                body,
+                token: public_token,
+            }))
         })
     }
 
@@ -621,9 +587,9 @@ impl<'src> Parser<'src> {
                     // Variable declaration
                     let var_decl_node =
                         self.var_decl_list().expect("Expected variable declaration");
-                    stmts.push(match var_decl_node.kind {
-                        NodeKind::VarDecl(decl) => Statement::VarDecl(decl),
-                        NodeKind::VarDeclList(decl_list) => Statement::VarDeclList(decl_list),
+                    stmts.push(match var_decl_node {
+                        Node::VarDecl(decl) => Statement::VarDecl(decl),
+                        Node::VarDeclList(decl_list) => Statement::VarDeclList(decl_list),
                         _ => panic!("Expected VarDecl"),
                     });
                 }
@@ -646,8 +612,8 @@ impl<'src> Parser<'src> {
                         Some(Ok(t)) => match t.kind {
                             TokenKind::Id => {
                                 let decl = self.var_decl_list()?;
-                                let decl = match decl.kind {
-                                    NodeKind::VarDecl(decl) => decl,
+                                let decl = match decl {
+                                    Node::VarDecl(decl) => decl,
                                     _ => panic!("Expected VarDecl"),
                                 };
                                 stmts.push(Statement::VarDecl(decl));
@@ -750,7 +716,7 @@ mod tests {
 
     use crate::{
         Parser,
-        ast::{Expr, Node, NodeKind, NodeResult},
+        ast::{Expr, Node, NodeResult},
     };
 
     struct ParseCaseArgs<'src> {
@@ -781,13 +747,11 @@ mod tests {
                 range: (0, 4),
                 coords: Coords::new(1, 0),
             })],
-            expected: Ok(Node {
-                kind: NodeKind::Expr(Expr::True(Token {
-                    kind: TokenKind::True,
-                    range: (0, 4),
-                    coords: Coords::new(1, 0),
-                })),
-            }),
+            expected: Ok(Node::Expr(Expr::True(Token {
+                kind: TokenKind::True,
+                range: (0, 4),
+                coords: Coords::new(1, 0),
+            }))),
         };
         test_parse_case!(expr, args);
     }
