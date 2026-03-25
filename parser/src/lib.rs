@@ -275,7 +275,7 @@ impl<'src> Parser<'src> {
 
             left = Node {
                 kind: NodeKind::Expr(Expr::Binary {
-                    op: token.kind,
+                    op: token,
                     left: Box::new(left),
                     right: Box::new(right),
                 }),
@@ -306,7 +306,7 @@ impl<'src> Parser<'src> {
                     token: expr.token,
                     kind: NodeKind::Expr(Expr::FieldAccess {
                         object: Box::new(expr),
-                        field: Box::new(field),
+                        field: field,
                     }),
                 };
             } else {
@@ -327,7 +327,7 @@ impl<'src> Parser<'src> {
                     return Ok(Node {
                         token,
                         kind: NodeKind::Expr(Expr::Unary {
-                            op: token.kind,
+                            op: token,
                             operand: Box::new(operand),
                         }),
                     });
@@ -335,39 +335,39 @@ impl<'src> Parser<'src> {
                 TokenKind::True => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
-                        kind: NodeKind::Expr(Expr::True),
+                        token: token.clone(),
+                        kind: NodeKind::Expr(Expr::True(token)),
                     })
                 }
                 TokenKind::False => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
-                        kind: NodeKind::Expr(Expr::False),
+                        token: token.clone(),
+                        kind: NodeKind::Expr(Expr::False(token)),
                     })
                 }
                 TokenKind::CharLiteral => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
-                        kind: NodeKind::Expr(Expr::CharLiteral),
+                        token: token.clone(),
+                        kind: NodeKind::Expr(Expr::CharLiteral(token)),
                     })
                 }
                 TokenKind::This => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
-                        kind: NodeKind::Expr(Expr::This),
+                        token: token.clone(),
+                        kind: NodeKind::Expr(Expr::This(token)),
                     })
                 }
                 TokenKind::Id => {
                     self.idx += 1;
                     Ok(Node {
                         token,
-                        kind: NodeKind::Expr(Expr::Identifier(Box::new(crate::ast::Id {
+                        kind: NodeKind::Expr(Expr::Identifier(crate::ast::Id {
                             name: self.get_token_value(token).to_string(),
                             token,
-                        }))),
+                        })),
                     })
                 }
                 TokenKind::New => {
@@ -379,10 +379,10 @@ impl<'src> Parser<'src> {
                         advance!(self, &[TokenKind::RightParen])?;
                         Ok(Node {
                             token,
-                            kind: NodeKind::Expr(Expr::New(Box::new(Type {
+                            kind: NodeKind::Expr(Expr::New(Type {
                                 ty: TypeKind::Custom(id_token.token),
                                 token: id_token.token,
-                            }))),
+                            })),
                         })
                     } else {
                         todo!()
@@ -391,8 +391,8 @@ impl<'src> Parser<'src> {
                 TokenKind::StringLiteral => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
-                        kind: NodeKind::Expr(Expr::True), // Placeholder for now
+                        token: token.clone(),
+                        kind: NodeKind::Expr(Expr::True(token)), // Placeholder for now
                     })
                 }
                 TokenKind::IntLiteral => {
@@ -841,7 +841,11 @@ mod tests {
                 coords: Coords::new(1, 0),
             })],
             expected: Ok(Node {
-                kind: NodeKind::Expr(Expr::True),
+                kind: NodeKind::Expr(Expr::True(Token {
+                    kind: TokenKind::True,
+                    range: (0, 4),
+                    coords: Coords::new(1, 0),
+                })),
                 token: Token {
                     kind: TokenKind::True,
                     range: (0, 4),

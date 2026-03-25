@@ -82,7 +82,7 @@ pub enum TypeKind {
     Char,
     Int,
     String,
-    // TODO: should we remove this?
+    // TODO: remove this
     Custom(Token),
 }
 
@@ -126,6 +126,7 @@ pub struct MainMethodDecl {
     pub name: Box<Id>,
     pub param_list: Box<ParamList>,
     pub body: Compound,
+    // TODO: remove this token field, implement NodeToken
     pub token: Token,
 }
 
@@ -135,12 +136,14 @@ pub struct RegularMethodDecl {
     pub name: Box<Id>,
     pub param_list: Box<ParamList>,
     pub body: Compound,
+    // TODO: remove this token field, implement NodeToken
     pub token: Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Compound {
     pub stmts: Vec<Statement>,
+    // TODO: remove this token field
     pub token: Token,
 }
 
@@ -166,24 +169,24 @@ pub struct ParamList {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     IntLiteral(Token),
-    CharLiteral,
-    True,
-    False,
-    This,
-    Identifier(Box<Id>),
-    New(Box<Type>),
+    CharLiteral(Token),
+    True(Token),
+    False(Token),
+    This(Token),
+    Identifier(Id),
+    New(Type),
     Unary {
-        op: TokenKind,
+        op: Token,
         operand: Box<Node>,
     },
     Binary {
-        op: TokenKind,
+        op: Token,
         left: Box<Node>,
         right: Box<Node>,
     },
     FieldAccess {
         object: Box<Node>,
-        field: Box<Id>,
+        field: Id,
     },
 }
 
@@ -199,6 +202,16 @@ pub trait Show<'src> {
     }
 
     fn show(&self, input: &'src str, indent: usize) -> String;
+}
+
+// TODO: better name?
+pub trait NodeToken {
+    /// Returns the (first) token associated with a node
+    ///
+    /// This trait is needed since some nodes do not have a `token` field (like `VarDeclList`), but
+    /// the output still expects them to be associated with a node, so we use this trait to do
+    /// that.
+    fn token(&self) -> Token;
 }
 
 impl<'src> Show<'src> for Node {
@@ -296,17 +309,17 @@ impl<'src> Show<'src> for Node {
                     tok.value(input),
                     tok.formatted_pos()
                 ),
-                Expr::CharLiteral => {
+                Expr::CharLiteral(tok) => {
                     format!(
                         "{}Constant: char, {} {}\n",
                         Self::indent(indent),
-                        self.token.value(input),
-                        self.token.formatted_pos(),
+                        tok.value(input),
+                        tok.formatted_pos(),
                     )
                 }
-                Expr::True => "True".to_string(),
-                Expr::False => "False".to_string(),
-                Expr::This => "This".to_string(),
+                Expr::True(_) => "True".to_string(),
+                Expr::False(_) => "False".to_string(),
+                Expr::This(_) => "This".to_string(),
                 Expr::Identifier(id) => {
                     format!(
                         "{}ID: {} {}\n",
@@ -322,7 +335,7 @@ impl<'src> Show<'src> for Node {
                     ty.show(&input, indent + Self::TAB)
                 ),
                 Expr::Unary { op, operand } => {
-                    let op_str = match op {
+                    let op_str = match op.kind {
                         TokenKind::Not => "!",
                         TokenKind::Plus => "+",
                         TokenKind::Minus => "-",
@@ -336,7 +349,7 @@ impl<'src> Show<'src> for Node {
                     )
                 }
                 Expr::Binary { op, left, right } => {
-                    let op_str = match op {
+                    let op_str = match op.kind {
                         TokenKind::Plus => "+",
                         TokenKind::Minus => "-",
                         TokenKind::Star => "*",
