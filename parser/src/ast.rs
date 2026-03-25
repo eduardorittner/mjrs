@@ -184,7 +184,7 @@ pub struct AssignmentExpr {}
 
 // TODO: better name?
 pub trait NodeToken {
-    /// Returns the (first) token associated with a node
+    /// Returns the token associated with a node
     ///
     /// This trait is needed since some nodes do not have a `token` field (like `VarDeclList`), but
     /// the output still expects them to be associated with a node, so we use this trait to do
@@ -194,7 +194,7 @@ pub trait NodeToken {
 
 impl NodeToken for VarDecl {
     fn token(&self) -> Token {
-        self.ty.token
+        self.name.0
     }
 }
 
@@ -398,11 +398,10 @@ impl<'src> Show<'src> for ClassDecl {
         let mut result = format!(
             "{}ClassDecl: ID(name={}) @ {}:{}\n",
             Self::indent(indent),
-            self.token.value(input),
+            self.name.0.value(input),
             self.token.line(),
             self.token.column()
         );
-        println!("{indent:?}");
         for var_decl in &self.var_decls {
             result.push_str(&var_decl.show(input, indent + Self::TAB));
         }
