@@ -2,8 +2,8 @@ use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
     AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeKind,
-    NodeResult, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind, VarDecl,
-    VarDeclList,
+    NodeResult, NodeToken, ParseResult, Print, RegularMethodDecl, Statement, Type, TypeKind,
+    VarDecl, VarDeclList,
 };
 
 pub mod ast;
@@ -52,7 +52,6 @@ impl<'src> Parser<'src> {
             kind: NodeKind::Program(crate::ast::Program {
                 classes: vec![class_decl],
             }),
-            token: class_node.token,
         })
     }
 
@@ -115,7 +114,6 @@ impl<'src> Parser<'src> {
                     token: compound_start,
                 },
             }),
-            token: class_token,
         })
     }
 
@@ -140,12 +138,10 @@ impl<'src> Parser<'src> {
         if decls.len() == 1 {
             Ok(Node {
                 kind: NodeKind::VarDecl(decls.into_iter().next().unwrap()),
-                token: ty.token,
             })
         } else {
             Ok(Node {
                 kind: NodeKind::VarDeclList(VarDeclList { decls }),
-                token: ty.token,
             })
         }
     }
@@ -265,7 +261,7 @@ impl<'src> Parser<'src> {
             let right = self.parse_expr(next_precedence)?;
 
             // Save the token before moving left
-            let left_token = left.token;
+            let left_token = left.token();
 
             left = Node {
                 kind: NodeKind::Expr(Expr::Binary {
@@ -273,7 +269,6 @@ impl<'src> Parser<'src> {
                     left: Box::new(left),
                     right: Box::new(right),
                 }),
-                token: left_token,
             };
         }
 
@@ -294,7 +289,6 @@ impl<'src> Parser<'src> {
                 let field = Id(field_token);
 
                 expr = Node {
-                    token: expr.token,
                     kind: NodeKind::Expr(Expr::FieldAccess {
                         object: Box::new(expr),
                         field: field,
@@ -318,7 +312,6 @@ impl<'src> Parser<'src> {
                     self.idx += 1; // consume operator
                     let operand = self.primary_expr()?;
                     return Ok(Node {
-                        token,
                         kind: NodeKind::Expr(Expr::Unary {
                             op: token,
                             operand: Box::new(operand),
@@ -328,35 +321,30 @@ impl<'src> Parser<'src> {
                 TokenKind::True => {
                     self.idx += 1;
                     Ok(Node {
-                        token: token.clone(),
                         kind: NodeKind::Expr(Expr::True(token)),
                     })
                 }
                 TokenKind::False => {
                     self.idx += 1;
                     Ok(Node {
-                        token: token.clone(),
                         kind: NodeKind::Expr(Expr::False(token)),
                     })
                 }
                 TokenKind::CharLiteral => {
                     self.idx += 1;
                     Ok(Node {
-                        token: token.clone(),
                         kind: NodeKind::Expr(Expr::CharLiteral(token)),
                     })
                 }
                 TokenKind::This => {
                     self.idx += 1;
                     Ok(Node {
-                        token: token.clone(),
                         kind: NodeKind::Expr(Expr::This(token)),
                     })
                 }
                 TokenKind::Id => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
                         kind: NodeKind::Expr(Expr::Identifier(Id(token))),
                     })
                 }
@@ -367,11 +355,13 @@ impl<'src> Parser<'src> {
                         advance!(self, &[TokenKind::LeftParen])?;
                         advance!(self, &[TokenKind::RightParen])?;
                         Ok(Node {
-                            token,
-                            kind: NodeKind::Expr(Expr::New(Type {
-                                ty: TypeKind::Custom,
-                                token: id_token.0,
-                            })),
+                            kind: NodeKind::Expr(Expr::New {
+                                token,
+                                ty: Type {
+                                    ty: TypeKind::Custom,
+                                    token: id_token.0,
+                                },
+                            }),
                         })
                     } else {
                         todo!()
@@ -380,14 +370,12 @@ impl<'src> Parser<'src> {
                 TokenKind::StringLiteral => {
                     self.idx += 1;
                     Ok(Node {
-                        token: token.clone(),
                         kind: NodeKind::Expr(Expr::True(token)), // Placeholder for now
                     })
                 }
                 TokenKind::IntLiteral => {
                     self.idx += 1;
                     Ok(Node {
-                        token,
                         kind: NodeKind::Expr(Expr::IntLiteral(token)),
                     })
                 }
@@ -501,7 +489,6 @@ impl<'src> Parser<'src> {
                     }))
                 }
             },
-            token: public_token,
         })
     }
 
@@ -800,11 +787,6 @@ mod tests {
                     range: (0, 4),
                     coords: Coords::new(1, 0),
                 })),
-                token: Token {
-                    kind: TokenKind::True,
-                    range: (0, 4),
-                    coords: Coords::new(1, 0),
-                },
             }),
         };
         test_parse_case!(expr, args);

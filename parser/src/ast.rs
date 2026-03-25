@@ -3,14 +3,6 @@ use lexer::token::{Token, TokenError, TokenKind};
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
     pub kind: NodeKind,
-    // TODO: remove this field, in favor of having a `token` field only on nodes with direct
-    // relationships to tokens. Maybe have a trait `TokenTrait` (horrible name) with a `token`
-    // method which returns an `Option<Token>` (nodes like `Program` would return `None` since they
-    // are not directly associated with any one specific token) or returns a `Token` by having
-    // nodes with no token associated return their first associated token (or any other logic).
-    // Whether to return `Option<Token>` or `Token` probably depends on what the test outputs
-    // expect
-    pub token: Token,
 }
 
 // TODO: implement pretty printing for better error reporting
@@ -163,7 +155,10 @@ pub enum Expr {
     False(Token),
     This(Token),
     Identifier(Id),
-    New(Type),
+    New {
+        token: Token,
+        ty: Type,
+    },
     Unary {
         op: Token,
         operand: Box<Node>,
@@ -192,9 +187,40 @@ pub trait NodeToken {
     fn token(&self) -> Token;
 }
 
+impl NodeToken for Node {
+    fn token(&self) -> Token {
+        match &self.kind {
+            NodeKind::Program(program) => todo!(),
+            NodeKind::ClassDecl(class_decl) => todo!(),
+            NodeKind::MethodDecl(method_decl) => todo!(),
+            NodeKind::VarDeclList(var_decl_list) => todo!(),
+            NodeKind::VarDecl(var_decl) => todo!(),
+            NodeKind::Expr(expr) => expr.token(),
+            NodeKind::Statement(statement) => todo!(),
+        }
+    }
+}
+
 impl NodeToken for VarDecl {
     fn token(&self) -> Token {
         self.name.0
+    }
+}
+
+impl NodeToken for Expr {
+    fn token(&self) -> Token {
+        match self {
+            Expr::IntLiteral(token)
+            | Expr::CharLiteral(token)
+            | Expr::False(token)
+            | Expr::True(token)
+            | Expr::Identifier(Id(token))
+            | Expr::New { token, .. }
+            | Expr::Unary { op: token, .. }
+            | Expr::Binary { op: token, .. }
+            | Expr::This(token) => *token,
+            Expr::FieldAccess { object, field } => todo!(),
+        }
     }
 }
 
@@ -321,13 +347,13 @@ impl<'src> Show<'src> for Node {
                         "{}ID: {} {}\n",
                         Self::indent(indent),
                         id.0.value(input),
-                        self.token.formatted_pos()
+                        id.0.formatted_pos()
                     )
                 }
-                Expr::New(ty) => format!(
+                Expr::New { token, ty } => format!(
                     "{}NewObject: {}\n{}",
                     Self::indent(indent),
-                    self.token.formatted_pos(),
+                    token.formatted_pos(),
                     ty.show(&input, indent + Self::TAB)
                 ),
                 Expr::Unary { op, operand } => {
@@ -359,21 +385,21 @@ impl<'src> Show<'src> for Node {
                     format!(
                         "BinaryOp: {} @ {}:{}",
                         op_str,
-                        left.token.line(),
-                        left.token.column()
+                        left.token().line(),
+                        left.token().column()
                     )
                 }
                 Expr::FieldAccess { object, field } => {
                     format!(
                         "{}FieldAccess: {}\n{}{}",
                         Self::indent(indent),
-                        object.token.formatted_pos(),
+                        object.token().formatted_pos(),
                         object.show(input, indent + Self::TAB),
                         field.show(input, indent + Self::TAB)
                     )
                 }
             },
-            _ => format!("Node({:?})", self.token),
+            _ => format!("Node({:?})", self.token()),
         }
     }
 }
