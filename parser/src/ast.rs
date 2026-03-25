@@ -26,6 +26,7 @@ pub enum Node {
     VarDecl(VarDecl),
     Expr(Expr),
     Statement(Statement),
+    Id(Id),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +44,7 @@ pub struct ClassDecl {
     pub body: Compound,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Id(pub Token);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -128,13 +129,21 @@ pub enum Statement {
     VarDeclList(VarDeclList),
     VarDecl(VarDecl),
     Print(Print),
-    Expression(Box<Node>),
+    // TODO: should this be `Expr(Expr)` instead?
+    Expr(Box<Node>),
     Break(Token),
+    Return(Return),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Print {
     pub item: Box<Node>,
+    pub token: Token,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Return {
+    pub expr: Option<Expr>,
     pub token: Token,
 }
 
@@ -163,12 +172,19 @@ pub enum Expr {
         /// Binary expression's first token (can be either `left.token()` or an opening paren)
         token: Token,
         op: Token,
+        // TODO: Should this be a `Node` or can it be `Expr`?
         left: Box<Node>,
         right: Box<Node>,
     },
     FieldAccess {
+        // TODO: Should this be a `Node` or can it be `Expr`?
         object: Box<Node>,
         field: Id,
+    },
+    MethodCall {
+        object: Box<Expr>,
+        name: Id,
+        // TODO: add `args`
     },
 }
 
@@ -195,6 +211,7 @@ impl NodeToken for Node {
             Node::VarDecl(var_decl) => todo!(),
             Node::Expr(expr) => expr.token(),
             Node::Statement(statement) => todo!(),
+            Node::Id(id) => todo!(),
         }
     }
 }
@@ -218,6 +235,7 @@ impl NodeToken for Expr {
             | Expr::Binary { op: token, .. }
             | Expr::This(token) => *token,
             Expr::FieldAccess { object, field } => todo!(),
+            Expr::MethodCall { object, name } => object.token(),
         }
     }
 }
@@ -246,82 +264,10 @@ impl<'src> Show<'src> for Node {
             }
             Node::ClassDecl(class_decl) => class_decl.show(input, indent),
             Node::VarDecl(var_decl) => var_decl.show(input, indent),
-            Node::MethodDecl(method_decl) => {
-                match method_decl {
-                    MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
-                    MethodDecl::Regular(method) => method.show(input, indent),
-                }
-                // let mut result = format!(
-                //     "MethodDecl: @ {}:{}",
-                //     self.token.line(),
-                //     self.token.column(),
-                // );
-                //
-                // result.push_str(&method_decl.param_list.show(input));
-                //
-                // result.push_str(&format!(
-                //     "\n            ID: {} @ {}:{}",
-                //     method_decl.param_list.show(input),
-                //     method_decl
-                //         .param_list
-                //         .params
-                //         .first()
-                //         .map(|(_, id)| id.token.line())
-                //         .unwrap_or(method_decl.name.token.line()),
-                //     method_decl
-                //         .param_list
-                //         .params
-                //         .first()
-                //         .map(|(_, id)| id.token.column())
-                //         .unwrap_or(method_decl.name.token.column())
-                // ));
-                //
-                // result.push_str(&format!(
-                //     "\n            Compound: @ {}:{}",
-                //     method_decl
-                //         .body
-                //         .stmts
-                //         .first()
-                //         .map(|stmt| {
-                //             match stmt {
-                //                 Statement::VarDecl(var_decl) => var_decl.name.token.line(),
-                //                 _ => method_decl.name.token.line(),
-                //             }
-                //         })
-                //         .unwrap_or(method_decl.name.token.line()),
-                //     method_decl
-                //         .body
-                //         .stmts
-                //         .first()
-                //         .map(|stmt| {
-                //             match stmt {
-                //                 Statement::VarDecl(var_decl) => var_decl.name.token.column(),
-                //                 _ => method_decl.name.token.column(),
-                //             }
-                //         })
-                //         .unwrap_or(method_decl.name.token.column())
-                // ));
-                //
-                // for stmt in &method_decl.body.stmts {
-                //     match stmt {
-                //         Statement::VarDecl(var_decl) => {
-                //             result.push_str(&format!("\n                {}", var_decl.show(input)));
-                //         }
-                //         Statement::Print(expr) => {
-                //             result.push_str(&format!(
-                //                 "\n                Print: @ {}:{}",
-                //                 expr.token.line(),
-                //                 expr.token.column()
-                //             ));
-                //         }
-                //         Statement::Expression(expr) => {
-                //             result.push_str(&format!("\n                {}", expr.show(input)));
-                //         }
-                //     }
-                // }
-                //
-                // result
-            }
+            Node::MethodDecl(method_decl) => match method_decl {
+                MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
+                MethodDecl::Regular(method) => method.show(input, indent + Self::TAB),
+            },
             Node::Expr(expr) => match expr {
                 Expr::IntLiteral(tok) => format!(
                     "{}Constant: int, {} {}\n",
@@ -385,6 +331,15 @@ impl<'src> Show<'src> for Node {
                         object.token().formatted_pos(),
                         object.show(input, indent + Self::TAB),
                         field.show(input, indent + Self::TAB)
+                    )
+                }
+                Expr::MethodCall { object, name } => {
+                    format!(
+                        "{}MethodCall: {}\n{}{}",
+                        Self::indent(indent),
+                        object.token().formatted_pos(),
+                        object.show(input, indent + Self::TAB),
+                        name.show(input, indent + Self::TAB)
                     )
                 }
             },
@@ -452,7 +407,14 @@ impl<'src> Show<'src> for MainMethodDecl {
 
 impl<'src> Show<'src> for RegularMethodDecl {
     fn show(&self, input: &'src str, indent: usize) -> String {
-        todo!()
+        format!(
+            "{}MethodDecl: ID(name={}) {}\n{}{}",
+            Self::indent(indent),
+            self.name.0.value(input),
+            self.token.formatted_pos(),
+            self.ty.show(input, indent + Self::TAB),
+            self.body.show(input, indent + Self::TAB),
+        )
     }
 }
 
@@ -494,7 +456,22 @@ impl<'src> Show<'src> for Statement {
             Statement::Break(token) => {
                 format!("{}Break: {}\n", Self::indent(indent), token.formatted_pos())
             }
-            Statement::Expression(node) => todo!(),
+            Statement::Return(retorn) => {
+                let expr = match &retorn.expr {
+                    Some(expr) => expr.show(input, indent + Self::TAB),
+                    None => "".to_string(),
+                };
+                format!(
+                    "{}Return: {}\n{}",
+                    Self::indent(indent),
+                    retorn.token.formatted_pos(),
+                    expr
+                )
+            }
+            Statement::Expr(node) => match node.as_ref() {
+                Node::Expr(expr) => expr.show(input, indent),
+                _ => unreachable!(),
+            },
         }
     }
 }
@@ -525,6 +502,42 @@ impl<'src> Show<'src> for Type {
             },
             self.token.formatted_pos()
         )
+    }
+}
+
+impl<'src> Show<'src> for Expr {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        match self {
+            Expr::IntLiteral(token) => todo!(),
+            Expr::CharLiteral(token) => todo!(),
+            Expr::True(token) => todo!(),
+            Expr::False(token) => todo!(),
+            Expr::This(token) => {
+                format!("{}This: {}\n", Self::indent(indent), token.formatted_pos())
+            }
+            Expr::Identifier(id) => format!(
+                "{}ID: {} {}\n",
+                Self::indent(indent),
+                id.0.value(input),
+                id.0.formatted_pos()
+            ),
+            Expr::New { token, ty } => todo!(),
+            Expr::Unary { op, operand } => todo!(),
+            Expr::Binary {
+                token,
+                op,
+                left,
+                right,
+            } => todo!(),
+            Expr::FieldAccess { object, field } => "".to_string(),
+            Expr::MethodCall { object, name } => format!(
+                "{}MethodCall: {}\n{}{}",
+                Self::indent(indent),
+                object.token().formatted_pos(),
+                object.show(input, indent + Self::TAB),
+                name.show(input, indent + Self::TAB)
+            ),
+        }
     }
 }
 
@@ -588,5 +601,11 @@ impl Expr {
             },
             _ => unreachable!(),
         }
+    }
+}
+
+impl From<TokenError> for NodeErr {
+    fn from(value: TokenError) -> Self {
+        Self::LexErr(value)
     }
 }
