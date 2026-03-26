@@ -1,7 +1,7 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    Assert, Block, Expr, For, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
+    Assert, Block, Expr, ExprList, For, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
     ParseResult, Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList,
     While,
 };
@@ -219,7 +219,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn args(&mut self) -> ParseResult<Vec<Expr>> {
+    fn args(&mut self) -> ParseResult<ExprList> {
         let mut args = Vec::new();
 
         while let Some(expr) = self.expr_try() {
@@ -229,7 +229,7 @@ impl<'src> Parser<'src> {
             }
         }
 
-        Ok(args)
+        Ok(ExprList { exprs: args })
     }
 
     fn expr_try(&mut self) -> Option<Expr> {
@@ -313,7 +313,7 @@ impl<'src> Parser<'src> {
                 expr = Expr::MethodCall {
                     name: field,
                     object: Box::new(expr),
-                    args,
+                    args: args.exprs,
                 }
             } else {
                 expr = Expr::FieldAccess {
@@ -614,14 +614,11 @@ impl<'src> Parser<'src> {
                     // Print statement
                     let print = advance!(self, &[TokenKind::Print]).expect("checked before-hand");
                     advance!(self, &[TokenKind::LeftParen]).expect("Expected '('");
-                    let expr = self.expr().expect("Expected expression");
+                    let args = self.args()?;
                     advance!(self, &[TokenKind::RightParen]).expect("Expected ')'");
                     advance!(self, &[TokenKind::Semicolon]).expect("Expected ';'");
 
-                    Ok(Statement::Print(Print {
-                        item: Box::new(Node::Expr(expr)),
-                        token: print,
-                    }))
+                    Ok(Statement::Print(Print { args, token: print }))
                 }
                 TokenKind::Break => {
                     let break_token =
@@ -720,13 +717,25 @@ impl<'src> Parser<'src> {
 
         advance!(self, &[TokenKind::LeftParen])?;
 
-        // var_decl_list() consumes the ';'
-        let mut init = self.var_decl_list(false)?;
-
-        // NOTE: for some reason tests expect DeclList's token to be the same as the for statement
-        match init {
-            Node::VarDeclList(ref mut list) => list.token = token,
-            _ => unreachable!(),
+        let init = if self
+            .peek()
+            .is_some_and(|result| result.is_ok_and(|tok| TYPE_SPECIFIERS.contains(&tok.kind)))
+            && self
+                .peek_n(2)
+                .is_some_and(|result| result.is_ok_and(|tok| tok.kind == TokenKind::Id))
+        {
+            // var_decl_list() consumes the ';'
+            let mut init = self.var_decl_list(false)?;
+            // NOTE: for some reason tests expect DeclList's token to be the same as the for statement
+            match init {
+                Node::VarDeclList(ref mut list) => list.token = token,
+                _ => unreachable!(),
+            };
+            init
+        } else {
+            let expr = Node::Expr(self.expr()?);
+            advance!(self, &[TokenKind::Semicolon])?;
+            expr
         };
 
         let cond = self.expr_try();
@@ -804,16 +813,7 @@ impl<'src> Parser<'src> {
     }
 
     fn type_specifier(&mut self) -> Option<ParseResult<Type>> {
-        let type_specifiers: [TokenKind; 6] = [
-            TokenKind::Void,
-            TokenKind::Boolean,
-            TokenKind::Char,
-            TokenKind::Int,
-            TokenKind::String,
-            TokenKind::Id,
-        ];
-
-        if let Some(token) = self.advance_if(&type_specifiers) {
+        if let Some(token) = self.advance_if(&TYPE_SPECIFIERS) {
             match TypeKind::try_from(token) {
                 Ok(ty) => Some(Ok(Type { ty, token })),
                 Err(e) => Some(Err(e)),
@@ -823,3 +823,12 @@ impl<'src> Parser<'src> {
         }
     }
 }
+
+pub const TYPE_SPECIFIERS: [TokenKind; 6] = [
+    TokenKind::Void,
+    TokenKind::Boolean,
+    TokenKind::Char,
+    TokenKind::Int,
+    TokenKind::String,
+    TokenKind::Id,
+];

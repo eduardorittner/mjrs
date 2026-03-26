@@ -24,6 +24,7 @@ pub enum Node {
     MethodDecl(MethodDecl),
     VarDeclList(VarDeclList),
     VarDecl(VarDecl),
+    ExprList(ExprList),
     Expr(Expr),
     Statement(Statement),
     Id(Id),
@@ -173,7 +174,7 @@ pub struct For {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Print {
-    pub item: Box<Node>,
+    pub args: ExprList,
     pub token: Token,
 }
 
@@ -186,6 +187,11 @@ pub struct Return {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParamList {
     pub params: Vec<(Type, Id)>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExprList {
+    pub exprs: Vec<Expr>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -254,6 +260,7 @@ impl NodeToken for Node {
             },
             Node::VarDeclList(node) => node.decls[0].token(),
             Node::VarDecl(node) => node.ty.token,
+            Node::ExprList(exprs) => exprs.token(),
             Node::Expr(node) => node.token(),
             Node::Statement(_node) => todo!(),
             Node::Id(node) => node.0,
@@ -264,6 +271,12 @@ impl NodeToken for Node {
 impl NodeToken for VarDecl {
     fn token(&self) -> Token {
         self.name.0
+    }
+}
+
+impl NodeToken for ExprList {
+    fn token(&self) -> Token {
+        self.exprs[0].token()
     }
 }
 
@@ -280,7 +293,7 @@ impl NodeToken for Expr {
             | Expr::Unary { op: token, .. }
             | Expr::Binary { op: token, .. }
             | Expr::This(token) => *token,
-            Expr::FieldAccess { .. } => todo!(),
+            Expr::FieldAccess { object, .. } => object.token(),
             Expr::MethodCall { object, .. } => object.token(),
             Expr::Assignment { lhs, .. } => lhs.token(),
         }
@@ -455,27 +468,33 @@ impl<'src> Show<'src> for While {
 impl<'src> Show<'src> for For {
     fn show(&self, input: &'src str, indent: usize) -> String {
         // NOTE: DeclLists are formatted differently inside for statements
-        let show_decl_list_inside_for = |decl_list: &Box<Node>| -> String {
-            format!(
-                "{}DeclList: {}\n{}",
-                Self::indent(indent + Self::TAB),
-                self.token.formatted_pos(),
-                match decl_list.as_ref() {
-                    Node::VarDeclList(var_decl_list) => var_decl_list,
-                    _ => unreachable!(),
+        let show_init = |init: &Box<Node>| -> String {
+            match init.as_ref() {
+                Node::VarDeclList(var_decl_list) => {
+                    format!(
+                        "{}DeclList: {}\n{}",
+                        Self::indent(indent + Self::TAB),
+                        self.token.formatted_pos(),
+                        match init.as_ref() {
+                            Node::VarDeclList(var_decl_list) => var_decl_list,
+                            _ => return "".to_string(),
+                        }
+                        .decls
+                        .iter()
+                        .map(|decl| decl.show(input, indent + 2 * Self::TAB))
+                        .collect::<String>()
+                    )
                 }
-                .decls
-                .iter()
-                .map(|decl| decl.show(input, indent + 2 * Self::TAB))
-                .collect::<String>()
-            )
+                Node::Expr(expr) => expr.show(input, indent + Self::TAB),
+                _ => return "".to_string(),
+            }
         };
 
         format!(
             "{}For: {}\n{}{}{}{}",
             Self::indent(indent),
             self.token.formatted_pos(),
-            show_decl_list_inside_for(&self.init),
+            show_init(&self.init),
             self.cond
                 .iter()
                 .map(|cond| cond.show(input, indent + Self::TAB))
@@ -496,17 +515,7 @@ impl<'src> Show<'src> for Statement {
             Statement::Block(block) => block.show(input, indent),
             Statement::VarDecl(var_decl) => var_decl.show(input, indent),
             Statement::VarDeclList(node) => node.show(input, indent),
-            Statement::Print(node) => {
-                println!("{node:?}");
-                let mut result = format!(
-                    "{}Print: {}\n",
-                    Self::indent(indent),
-                    node.token.formatted_pos()
-                );
-
-                result.push_str(&node.item.show(input, indent + Self::TAB));
-                result
-            }
+            Statement::Print(node) => node.show(input, indent),
             Statement::Break(token) => {
                 format!("{}Break: {}\n", Self::indent(indent), token.formatted_pos())
             }
@@ -556,6 +565,27 @@ impl<'src> Show<'src> for Type {
             },
             self.token.formatted_pos()
         )
+    }
+}
+
+impl<'src> Show<'src> for ExprList {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        if self.exprs.len() > 1 {
+            format!(
+                "{}ExprList: {}\n{}",
+                Self::indent(indent),
+                self.token().formatted_pos(),
+                self.exprs
+                    .iter()
+                    .map(|expr| expr.show(input, indent + Self::TAB))
+                    .collect::<String>()
+            )
+        } else {
+            self.exprs
+                .iter()
+                .map(|expr| expr.show(input, indent))
+                .collect::<String>()
+        }
     }
 }
 
@@ -678,6 +708,17 @@ impl<'src> Show<'src> for VarDeclList {
             .iter()
             .map(|decl| decl.show(input, indent))
             .collect()
+    }
+}
+
+impl<'src> Show<'src> for Print {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        format!(
+            "{}Print: {}\n{}",
+            Self::indent(indent),
+            self.token.formatted_pos(),
+            self.args.show(input, indent + Self::TAB)
+        )
     }
 }
 
