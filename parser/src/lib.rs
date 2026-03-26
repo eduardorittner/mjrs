@@ -130,8 +130,6 @@ impl<'src> Parser<'src> {
         // Parse ";"
         advance!(self, &[TokenKind::Semicolon])?;
 
-        println!("me here");
-
         if decls.len() == 1 {
             Ok(Node::VarDecl(decls.into_iter().next().unwrap()))
         } else {
