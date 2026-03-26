@@ -2,7 +2,7 @@ use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
     Assert, Block, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult, ParseResult,
-    Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList,
+    Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList, While,
 };
 
 pub mod ast;
@@ -661,6 +661,7 @@ impl<'src> Parser<'src> {
                 TokenKind::This => self.expr_stmt(),
                 TokenKind::Assert => self.assert_stmt().map(|ok| Statement::Assert(ok)),
                 TokenKind::If => self.if_stmt(),
+                TokenKind::While => self.while_stmt(),
                 TokenKind::LeftBrace => Ok(Statement::Block(self.compound_stmt()?)),
                 tok => panic!("{tok:?}"),
             }
@@ -703,6 +704,22 @@ impl<'src> Parser<'src> {
         advance!(self, &[TokenKind::Semicolon])?;
 
         Ok(Assert { token, cond })
+    }
+
+    fn while_stmt(&mut self) -> ParseResult<Statement> {
+        let while_token = advance!(self, &[TokenKind::While])?;
+
+        advance!(self, &[TokenKind::LeftParen])?;
+        let cond = self.expr()?;
+        advance!(self, &[TokenKind::RightParen])?;
+
+        let block = self.stmt()?;
+
+        Ok(Statement::While(While {
+            token: while_token,
+            cond,
+            block: Box::new(block),
+        }))
     }
 
     // TODO: make this return `If`

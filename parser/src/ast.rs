@@ -134,6 +134,7 @@ pub enum Statement {
     Break(Token),
     Return(Return),
     If(If),
+    While(While),
     Assert(Assert),
 }
 
@@ -149,6 +150,13 @@ pub struct If {
     pub cond: Expr,
     pub then: Box<Statement>,
     pub elze: Option<Box<Statement>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct While {
+    pub token: Token,
+    pub cond: Expr,
+    pub block: Box<Statement>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -417,6 +425,18 @@ impl<'src> Show<'src> for If {
     }
 }
 
+impl<'src> Show<'src> for While {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        format!(
+            "{}While: {}\n{}{}",
+            Self::indent(indent),
+            self.token.formatted_pos(),
+            self.cond.show(input, indent + Self::TAB),
+            self.block.show(input, indent + Self::TAB),
+        )
+    }
+}
+
 impl<'src> Show<'src> for Statement {
     fn show(&self, input: &'src str, indent: usize) -> String {
         match self {
@@ -451,6 +471,7 @@ impl<'src> Show<'src> for Statement {
             }
             Statement::Expr(expr) => expr.show(input, indent),
             Statement::If(node) => node.show(input, indent),
+            Statement::While(node) => node.show(input, indent),
         }
     }
 }
