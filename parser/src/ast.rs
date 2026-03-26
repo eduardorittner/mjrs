@@ -404,11 +404,15 @@ impl<'src> Show<'src> for Block {
 impl<'src> Show<'src> for If {
     fn show(&self, input: &'src str, indent: usize) -> String {
         format!(
-            "{}If: {}\n{}{}",
+            "{}If: {}\n{}{}{}",
             Self::indent(indent),
             self.token.formatted_pos(),
             self.cond.show(input, indent + Self::TAB),
             self.then.show(input, indent + Self::TAB),
+            match &self.elze {
+                Some(stmt) => stmt.show(input, indent + Self::TAB),
+                None => "".to_string(),
+            }
         )
     }
 }
