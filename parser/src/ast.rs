@@ -88,7 +88,7 @@ pub struct VarDeclList {
 pub struct VarDecl {
     pub ty: Box<Type>,
     pub name: Box<Id>,
-    pub init: Option<Box<Node>>, // Initializer expression
+    pub init: Option<Box<Expr>>, // Initializer expression
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -129,8 +129,7 @@ pub enum Statement {
     VarDeclList(VarDeclList),
     VarDecl(VarDecl),
     Print(Print),
-    // TODO: should this be `Expr(Expr)` instead?
-    Expr(Box<Node>),
+    Expr(Box<Expr>),
     Break(Token),
     Return(Return),
 }
@@ -173,12 +172,12 @@ pub enum Expr {
         token: Token,
         op: Token,
         // TODO: Should this be a `Node` or can it be `Expr`?
-        left: Box<Node>,
-        right: Box<Node>,
+        left: Box<Expr>,
+        right: Box<Expr>,
     },
     FieldAccess {
         // TODO: Should this be a `Node` or can it be `Expr`?
-        object: Box<Node>,
+        object: Box<Expr>,
         field: Id,
     },
     MethodCall {
@@ -273,7 +272,6 @@ impl<'src> Show<'src> for Node {
                 MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
                 MethodDecl::Regular(method) => method.show(input, indent + Self::TAB),
             },
-            // TODO: replace this match with expr.show(input, indent)
             Node::Expr(expr) => expr.show(input, indent),
             _ => format!("Node({:?})", self.token()),
         }
@@ -400,10 +398,7 @@ impl<'src> Show<'src> for Statement {
                     expr
                 )
             }
-            Statement::Expr(node) => match node.as_ref() {
-                Node::Expr(expr) => expr.show(input, indent),
-                _ => unreachable!(),
-            },
+            Statement::Expr(expr) => expr.show(input, indent),
         }
     }
 }

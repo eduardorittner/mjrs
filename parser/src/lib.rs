@@ -1,7 +1,7 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    AssignmentExpr, Compound, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
+    AssignmentExpr, Block, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
     NodeToken, ParseResult, Print, RegularMethodDecl, Return, Show, Statement, Type, TypeKind,
     VarDecl, VarDeclList,
 };
@@ -106,7 +106,7 @@ impl<'src> Parser<'src> {
             token: class_token,
             var_decls,
             method_decls,
-            body: crate::ast::Compound {
+            body: crate::ast::Block {
                 stmts: vec![],
                 token: compound_start,
             },
@@ -147,7 +147,7 @@ impl<'src> Parser<'src> {
 
         // Optional initializer expression
         let init = if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
-            Some(Box::new(Node::Expr(self.expr()?)))
+            Some(Box::new(self.expr()?))
         } else {
             None
         };
@@ -276,8 +276,8 @@ impl<'src> Parser<'src> {
             left = Expr::Binary {
                 token: first_token,
                 op: token,
-                left: Box::new(Node::Expr(left)),
-                right: Box::new(Node::Expr(right)),
+                left: Box::new(left),
+                right: Box::new(right),
             };
         }
 
@@ -304,7 +304,7 @@ impl<'src> Parser<'src> {
                 }
             } else {
                 expr = Expr::FieldAccess {
-                    object: Box::new(Node::Expr(expr)),
+                    object: Box::new(expr),
                     field: field,
                 };
             }
@@ -590,7 +590,7 @@ impl<'src> Parser<'src> {
         crate::ast::ParamList { params }
     }
 
-    fn compound_stmt(&mut self) -> ParseResult<Compound> {
+    fn compound_stmt(&mut self) -> ParseResult<Block> {
         // Parse "{"
         let compound_start = advance!(self, &[TokenKind::LeftBrace])
             .expect("Expected '{' to start compound statement");
@@ -682,7 +682,7 @@ impl<'src> Parser<'src> {
         // Parse "}"
         advance!(self, &[TokenKind::RightBrace]).expect("Expected '}' to end compound statement");
 
-        Ok(Compound {
+        Ok(Block {
             stmts,
             token: compound_start,
         })
@@ -697,7 +697,7 @@ impl<'src> Parser<'src> {
 
     fn expr_stmt(&mut self) -> ParseResult<Statement> {
         let expr = self.expr()?;
-        let stmt = Statement::Expr(Box::new(Node::Expr(expr)));
+        let stmt = Statement::Expr(Box::new(expr));
         advance!(self, &[TokenKind::Semicolon])?;
 
         Ok(stmt)
