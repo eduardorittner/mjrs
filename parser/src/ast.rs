@@ -205,16 +205,20 @@ pub trait NodeToken {
 }
 
 impl NodeToken for Node {
+    #[inline]
     fn token(&self) -> Token {
         match &self {
-            Node::Program(program) => todo!(),
-            Node::ClassDecl(class_decl) => todo!(),
-            Node::MethodDecl(method_decl) => todo!(),
-            Node::VarDeclList(var_decl_list) => todo!(),
-            Node::VarDecl(var_decl) => todo!(),
-            Node::Expr(expr) => expr.token(),
-            Node::Statement(statement) => todo!(),
-            Node::Id(id) => todo!(),
+            Node::Program(_program) => todo!(),
+            Node::ClassDecl(node) => node.token,
+            Node::MethodDecl(node) => match node {
+                MethodDecl::Main(decl) => decl.token,
+                MethodDecl::Regular(decl) => decl.token,
+            },
+            Node::VarDeclList(node) => node.decls[0].token(),
+            Node::VarDecl(node) => node.ty.token,
+            Node::Expr(node) => node.token(),
+            Node::Statement(_node) => todo!(),
+            Node::Id(node) => node.0,
         }
     }
 }
@@ -237,9 +241,12 @@ impl NodeToken for Expr {
             | Expr::Unary { op: token, .. }
             | Expr::Binary { op: token, .. }
             | Expr::This(token) => *token,
-            Expr::FieldAccess { object, field } => todo!(),
-            Expr::MethodCall { object, name } => object.token(),
-            Expr::Assignment { lhs, rhs } => lhs.token(),
+            Expr::FieldAccess {
+                object: _,
+                field: _,
+            } => todo!(),
+            Expr::MethodCall { object, name: _ } => object.token(),
+            Expr::Assignment { lhs, rhs: _ } => lhs.token(),
         }
     }
 }

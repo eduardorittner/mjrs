@@ -1,9 +1,8 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    AssignmentExpr, Block, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
-    NodeToken, ParseResult, Print, RegularMethodDecl, Return, Show, Statement, Type, TypeKind,
-    VarDecl, VarDeclList,
+    Block, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult, ParseResult, Print,
+    RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList,
 };
 
 pub mod ast;
@@ -157,11 +156,6 @@ impl<'src> Parser<'src> {
             name: Box::new(name),
             init: init,
         })
-    }
-
-    // TODO: do we need this?
-    fn get_token_value(&self, token: Token) -> &str {
-        &self.input[token.range.0..token.range.1]
     }
 
     /// Consumes the next token, returning an error if the token kind is not present in `expected`
@@ -402,18 +396,11 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn unary_expr(&mut self) -> NodeResult {
-        todo!()
-    }
-
-    fn binary_expr(&mut self) -> NodeResult {
-        todo!()
-    }
-
     fn method_decl(&mut self) -> NodeResult {
         let public = advance!(self, &[TokenKind::Public])?;
 
-        let statik = self.advance_if(&[TokenKind::Static]);
+        // Consume optional static keyword
+        self.advance_if(&[TokenKind::Static]);
 
         let return_type = advance!(
             self,
@@ -672,7 +659,7 @@ impl<'src> Parser<'src> {
                 TokenKind::RightBrace => {
                     break;
                 }
-                tok => {
+                _tok => {
                     // For now, just break on unknown tokens
                     break;
                 }
@@ -686,13 +673,6 @@ impl<'src> Parser<'src> {
             stmts,
             token: compound_start,
         })
-    }
-
-    fn compound_declaration(&mut self) -> ParseResult<VarDeclList> {
-        while let Some(Ok(_token)) = self.type_specifier() {
-            let declarator_list = self.init_declarator_list()?;
-        }
-        todo!()
     }
 
     fn expr_stmt(&mut self) -> ParseResult<Statement> {
@@ -729,37 +709,5 @@ impl<'src> Parser<'src> {
         } else {
             None
         }
-    }
-
-    fn init_declarator_list(&mut self) -> ParseResult<Vec<(Id, Option<AssignmentExpr>)>> {
-        let mut results = Vec::new();
-
-        while let Some(var_name) = self.advance_if(&[TokenKind::Id]) {
-            if let Some(tok) = self.advance_if(&[TokenKind::Eq, TokenKind::Comma]) {
-                match tok.kind {
-                    TokenKind::Eq => {
-                        results.push((Id(var_name), Some(self.assignment_expr()?)));
-
-                        if let Some(_) = self.advance_if(&[TokenKind::Comma]) {
-                        } else {
-                            break;
-                        }
-                    }
-                    TokenKind::Comma => {
-                        results.push((Id(var_name), None));
-                        continue;
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                results.push((Id(var_name), None));
-            }
-        }
-
-        Ok(results)
-    }
-
-    fn assignment_expr(&mut self) -> ParseResult<AssignmentExpr> {
-        todo!()
     }
 }
