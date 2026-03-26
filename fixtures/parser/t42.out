@@ -1,0 +1,43 @@
+Program:
+    ClassDecl: ID(name=Basic) @ 1:1
+        VarDecl: ID(name=field) @ 2:7
+            Type: int @ 2:3
+        MethodDecl: ID(name=method) @ 4:3
+            Type: void @ 4:10
+            Compound: @ 4:24
+                Print: @ 5:5
+                    ExprList: @ 5:11
+                        Constant: String, "field: " @ 5:11
+                        FieldAccess: @ 5:22
+                            This: @ 5:22
+                            ID: field @ 5:27
+    ClassDecl: ID(name=Father) @ 9:1
+        VarDecl: ID(name=grand_child) @ 10:9
+            Type: ID(name=Basic) @ 10:3
+    ClassDecl: ID(name=GrandFather) @ 13:1
+        VarDecl: ID(name=child) @ 14:10
+            Type: ID(name=Father) @ 14:3
+    ClassDecl: ID(name=Main) @ 17:1
+        MainMethodDecl: @ 18:5
+            ID: args @ 18:38
+            Compound: @ 18:44
+                VarDecl: ID(name=grandpa) @ 19:15
+                    Type: ID(name=GrandFather) @ 19:3
+                    NewObject: @ 19:25
+                        Type: ID(name=GrandFather) @ 19:29
+                VarDecl: ID(name=field) @ 21:7
+                    Type: int @ 21:3
+                    FieldAccess: @ 21:15
+                        FieldAccess: @ 21:15
+                            FieldAccess: @ 21:15
+                                ID: grandpa @ 21:15
+                                ID: child @ 21:23
+                            ID: grand_child @ 21:29
+                        ID: field @ 21:41
+                MethodCall: @ 22:3
+                    FieldAccess: @ 22:3
+                        FieldAccess: @ 22:3
+                            ID: grandpa @ 22:3
+                            ID: child @ 22:11
+                        ID: grand_child @ 22:17
+                    ID: method @ 22:29

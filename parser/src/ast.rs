@@ -864,7 +864,7 @@ impl NodeErr {
                 actual.value(input),
                 actual.formatted_pos()
             ),
-            NodeErr::Eof => todo!(),
+            NodeErr::Eof => "Unexpected eof".to_string(),
             NodeErr::LexErr(_) => todo!(),
         }
     }

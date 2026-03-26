@@ -1,0 +1,25 @@
+class Basic {
+		int field;
+
+		public void method() {
+				print("field: ", this.field);
+		}
+}
+
+class Father {
+		Basic grand_child;
+}
+
+class GrandFather {
+		Father child;
+}
+
+class Main {
+    public static void main(String[] args) {
+		GrandFather grandpa = new GrandFather();
+
+		int field = grandpa.child.grand_child.field;
+		grandpa.child.grand_child.method();
+
+    }
+}

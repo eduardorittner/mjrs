@@ -63,7 +63,18 @@ impl<'src> Parser<'src> {
         // Parse variable and method declarations
         while let Some(Ok(token)) = self.peek() {
             match token.kind {
-                TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
+                TokenKind::Id => {
+                    if let Some(Ok(id_token)) = self.peek_n(2)
+                        && id_token.kind == TokenKind::Id
+                    {
+                        let var_decl = self.var_decl_list(true)?;
+                        var_decls.push(match var_decl {
+                            Node::VarDecl(decl) => decl,
+                            _ => todo!(),
+                        });
+                    };
+                }
+                kind if TYPE_SPECIFIERS.contains(&kind) => {
                     // Check if it's a variable or method declaration
                     // For now, let's just parse variable declarations
                     let var_decl_node = self.var_decl_list(true)?;
@@ -189,15 +200,12 @@ impl<'src> Parser<'src> {
                 self.idx += 1;
                 Ok(tok)
             }
-            Ok(tok) => {
-                // TODO: should we  `self.idx` here?
-                Err(NodeErr::Unexpected {
-                    expected: Vec::from(expected),
-                    actual: tok,
-                    line,
-                    file,
-                })
-            }
+            Ok(tok) => Err(NodeErr::Unexpected {
+                expected: Vec::from(expected),
+                actual: tok,
+                line,
+                file,
+            }),
             Err(e) => Err(NodeErr::LexErr(e)),
         }
     }
@@ -271,7 +279,7 @@ impl<'src> Parser<'src> {
 
     fn parse_expr(&mut self, min_precedence: u8) -> ParseResult<Expr> {
         let first_token = self.peek().unwrap()?;
-        let mut left = self.primary_expr()?;
+        let mut left = self.postfix_expr()?;
 
         while let Some(Ok(token)) = self.peek() {
             if !token.kind.is_binary_operator() {
@@ -312,10 +320,8 @@ impl<'src> Parser<'src> {
         Ok(left)
     }
 
-    // TODO: this is currently parsing more than primary expressions, rename ir or refactor out
-    /// Parses primary expressions, which are either literals or of the form '(' <expr> ')'
-    fn primary_expr(&mut self) -> ParseResult<Expr> {
-        let mut expr = self.primary_expr_without_field_access()?;
+    fn postfix_expr(&mut self) -> ParseResult<Expr> {
+        let mut expr = self.primary_expr()?;
 
         // TODO: cleanup postfix operator parsing
 
@@ -365,13 +371,13 @@ impl<'src> Parser<'src> {
     }
 
     /// Parses primary expressions without field access
-    fn primary_expr_without_field_access(&mut self) -> ParseResult<Expr> {
+    fn primary_expr(&mut self) -> ParseResult<Expr> {
         if let Some(Ok(token)) = self.peek() {
             match token.kind {
                 // Unary operators
                 TokenKind::Minus | TokenKind::Not | TokenKind::Plus => {
                     self.idx += 1; // consume operator
-                    let operand = self.primary_expr()?;
+                    let operand = self.postfix_expr()?;
                     return Ok(Expr::Unary {
                         op: token,
                         operand: Box::new(Node::Expr(operand)),
@@ -448,7 +454,6 @@ impl<'src> Parser<'src> {
                     self.idx += 1; // consume '('
                     let expr = self.expr()?;
                     advance!(self, &[TokenKind::RightParen])?; // consume ')'
-                    // TODO: update expr.token here
 
                     Ok(expr)
                 }
