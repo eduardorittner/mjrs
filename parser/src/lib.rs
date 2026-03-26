@@ -214,6 +214,19 @@ impl<'src> Parser<'src> {
         }
     }
 
+    fn args(&mut self) -> ParseResult<Vec<Expr>> {
+        let mut args = Vec::new();
+
+        while let Some(expr) = self.expr_try() {
+            args.push(expr);
+            if self.advance_if(&[TokenKind::Comma]).is_none() {
+                break;
+            }
+        }
+
+        Ok(args)
+    }
+
     fn expr_try(&mut self) -> Option<Expr> {
         // NOTE: this is sort of hacky, I guess
         self.parse_expr(0).ok()
@@ -288,13 +301,14 @@ impl<'src> Parser<'src> {
             let field_token = advance!(self, &[TokenKind::Id])?;
             let field = Id(field_token);
 
-            // Method call
             if self.advance_if(&[TokenKind::LeftParen]).is_some() {
+                let args = self.args()?;
                 advance!(self, &[TokenKind::RightParen])?;
 
                 expr = Expr::MethodCall {
                     name: field,
                     object: Box::new(expr),
+                    args,
                 }
             } else {
                 expr = Expr::FieldAccess {
@@ -577,25 +591,18 @@ impl<'src> Parser<'src> {
         crate::ast::ParamList { params }
     }
 
-    fn compound_stmt(&mut self) -> ParseResult<Block> {
-        // Parse "{"
-        let compound_start = advance!(self, &[TokenKind::LeftBrace])
-            .expect("Expected '{' to start compound statement");
-
-        let mut stmts = Vec::new();
-
-        // Parse statements until "}"
-        while let Some(Ok(token)) = self.peek() {
+    fn stmt(&mut self) -> ParseResult<Statement> {
+        if let Some(Ok(token)) = self.peek() {
             match token.kind {
                 TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
                     // Variable declaration
                     let var_decl_node =
                         self.var_decl_list().expect("Expected variable declaration");
-                    stmts.push(match var_decl_node {
-                        Node::VarDecl(decl) => Statement::VarDecl(decl),
-                        Node::VarDeclList(decl_list) => Statement::VarDeclList(decl_list),
+                    match var_decl_node {
+                        Node::VarDecl(decl) => Ok(Statement::VarDecl(decl)),
+                        Node::VarDeclList(decl_list) => Ok(Statement::VarDeclList(decl_list)),
                         _ => panic!("Expected VarDecl"),
-                    });
+                    }
                 }
                 TokenKind::Print => {
                     // Print statement
@@ -605,10 +612,10 @@ impl<'src> Parser<'src> {
                     advance!(self, &[TokenKind::RightParen]).expect("Expected ')'");
                     advance!(self, &[TokenKind::Semicolon]).expect("Expected ';'");
 
-                    stmts.push(crate::ast::Statement::Print(Print {
+                    Ok(Statement::Print(Print {
                         item: Box::new(Node::Expr(expr)),
                         token: print,
-                    }));
+                    }))
                 }
                 TokenKind::Break => {
                     let break_token =
@@ -617,7 +624,7 @@ impl<'src> Parser<'src> {
                     advance!(self, &[TokenKind::Semicolon])
                         .expect("expected ';' after 'break' keyword");
 
-                    stmts.push(Statement::Break(break_token));
+                    Ok(Statement::Break(break_token))
                 }
                 TokenKind::Return => {
                     let return_token =
@@ -628,10 +635,10 @@ impl<'src> Parser<'src> {
                     advance!(self, &[TokenKind::Semicolon])
                         .expect("expected ';' after 'return' keyword and expression");
 
-                    stmts.push(Statement::Return(Return {
+                    Ok(Statement::Return(Return {
                         token: return_token,
                         expr,
-                    }));
+                    }))
                 }
                 TokenKind::Id => {
                     // Either expression statement or declaration
@@ -643,25 +650,41 @@ impl<'src> Parser<'src> {
                                     Node::VarDecl(decl) => decl,
                                     _ => panic!("Expected VarDecl"),
                                 };
-                                stmts.push(Statement::VarDecl(decl));
+                                Ok(Statement::VarDecl(decl))
                             }
                             _ => {
                                 // Assume it's an expression statement
-                                stmts.push(self.expr_stmt()?);
+                                self.expr_stmt()
                             }
                         },
                         _ => unimplemented!(),
                     }
                 }
-                TokenKind::This => {
-                    stmts.push(self.expr_stmt()?);
-                }
+                TokenKind::This => self.expr_stmt(),
+                TokenKind::If => self.if_stmt(),
+                TokenKind::LeftBrace => Ok(Statement::Block(self.compound_stmt()?)),
+                _ => unreachable!(),
+            }
+        } else {
+            Err(NodeErr::Eof)
+        }
+    }
+
+    fn compound_stmt(&mut self) -> ParseResult<Block> {
+        // Parse "{"
+        let compound_start = advance!(self, &[TokenKind::LeftBrace])
+            .expect("Expected '{' to start compound statement");
+
+        let mut stmts = Vec::new();
+
+        // Parse statements until "}"
+        while let Some(Ok(token)) = self.peek() {
+            match token.kind {
                 TokenKind::RightBrace => {
                     break;
                 }
                 _tok => {
-                    // For now, just break on unknown tokens
-                    break;
+                    stmts.push(self.stmt()?);
                 }
             }
         }
@@ -673,6 +696,29 @@ impl<'src> Parser<'src> {
             stmts,
             token: compound_start,
         })
+    }
+
+    fn if_stmt(&mut self) -> ParseResult<Statement> {
+        let if_token = advance!(self, &[TokenKind::If])?;
+
+        advance!(self, &[TokenKind::LeftParen])?;
+        let cond = self.expr()?;
+        advance!(self, &[TokenKind::RightParen])?;
+
+        let then = self.stmt()?;
+
+        let elze = if let Some(_else_token) = self.advance_if(&[TokenKind::Else]) {
+            Some(self.stmt()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::If(ast::If {
+            token: if_token,
+            cond,
+            then: Box::new(then),
+            elze: elze.map(|stmt| Box::new(stmt)),
+        }))
     }
 
     fn expr_stmt(&mut self) -> ParseResult<Statement> {

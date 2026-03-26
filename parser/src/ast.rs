@@ -126,12 +126,22 @@ pub struct Block {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    Block(Block),
     VarDeclList(VarDeclList),
     VarDecl(VarDecl),
     Print(Print),
     Expr(Box<Expr>),
     Break(Token),
     Return(Return),
+    If(If),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct If {
+    pub token: Token,
+    pub cond: Expr,
+    pub then: Box<Statement>,
+    pub elze: Option<Box<Statement>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -183,7 +193,7 @@ pub enum Expr {
     MethodCall {
         object: Box<Expr>,
         name: Id,
-        // TODO: add `args`
+        args: Vec<Expr>,
     },
     Assignment {
         lhs: Box<Expr>,
@@ -241,12 +251,9 @@ impl NodeToken for Expr {
             | Expr::Unary { op: token, .. }
             | Expr::Binary { op: token, .. }
             | Expr::This(token) => *token,
-            Expr::FieldAccess {
-                object: _,
-                field: _,
-            } => todo!(),
-            Expr::MethodCall { object, name: _ } => object.token(),
-            Expr::Assignment { lhs, rhs: _ } => lhs.token(),
+            Expr::FieldAccess { .. } => todo!(),
+            Expr::MethodCall { object, .. } => object.token(),
+            Expr::Assignment { lhs, .. } => lhs.token(),
         }
     }
 }
@@ -345,11 +352,12 @@ impl<'src> Show<'src> for MainMethodDecl {
 impl<'src> Show<'src> for RegularMethodDecl {
     fn show(&self, input: &'src str, indent: usize) -> String {
         format!(
-            "{}MethodDecl: ID(name={}) {}\n{}{}",
+            "{}MethodDecl: ID(name={}) {}\n{}{}{}",
             Self::indent(indent),
             self.name.0.value(input),
             self.token.formatted_pos(),
             self.ty.show(input, indent + Self::TAB),
+            self.param_list.show(input, indent + Self::TAB),
             self.body.show(input, indent + Self::TAB),
         )
     }
@@ -375,9 +383,22 @@ impl<'src> Show<'src> for Block {
     }
 }
 
+impl<'src> Show<'src> for If {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        format!(
+            "{}If: {}\n{}{}",
+            Self::indent(indent),
+            self.token.formatted_pos(),
+            self.cond.show(input, indent + Self::TAB),
+            self.then.show(input, indent + Self::TAB),
+        )
+    }
+}
+
 impl<'src> Show<'src> for Statement {
     fn show(&self, input: &'src str, indent: usize) -> String {
         match self {
+            Statement::Block(block) => block.show(input, indent),
             Statement::VarDecl(var_decl) => var_decl.show(input, indent),
             Statement::VarDeclList(node) => node.show(input, indent),
             Statement::Print(node) => {
@@ -406,6 +427,7 @@ impl<'src> Show<'src> for Statement {
                 )
             }
             Statement::Expr(expr) => expr.show(input, indent),
+            Statement::If(node) => node.show(input, indent),
         }
     }
 }
@@ -501,13 +523,16 @@ impl<'src> Show<'src> for Expr {
                     field.show(input, indent + Self::TAB)
                 )
             }
-            Expr::MethodCall { object, name } => {
+            Expr::MethodCall { object, name, args } => {
                 format!(
-                    "{}MethodCall: {}\n{}{}",
+                    "{}MethodCall: {}\n{}{}{}",
                     Self::indent(indent),
                     object.token().formatted_pos(),
                     object.show(input, indent + Self::TAB),
-                    name.show(input, indent + Self::TAB)
+                    name.show(input, indent + Self::TAB),
+                    args.iter()
+                        .map(|arg| arg.show(input, indent + Self::TAB))
+                        .collect::<String>()
                 )
             }
             Expr::Assignment { lhs, rhs } => {
@@ -552,14 +577,28 @@ impl<'src> Show<'src> for VarDeclList {
 
 impl<'src> Show<'src> for ParamList {
     fn show(&self, input: &'src str, indent: usize) -> String {
-        let mut result = String::new();
-        for (i, (ty, id)) in self.params.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
-            }
-            result.push_str(&format!("{} {}", ty.show(input, indent), id.0.value(input)));
+        if !self.params.is_empty() {
+            let mut result = String::new();
+            result.push_str(&format!("{}ParamList:\n", Self::indent(indent)));
+            result.push_str(
+                &self
+                    .params
+                    .iter()
+                    .map(|(ty, id)| {
+                        format!(
+                            "{}ParamDecl: ID(name={}) {}\n{}",
+                            Self::indent(indent + Self::TAB),
+                            id.0.value(input),
+                            ty.token.formatted_pos(),
+                            ty.show(input, indent + 2 * Self::TAB)
+                        )
+                    })
+                    .collect::<String>(),
+            );
+            result
+        } else {
+            String::new()
         }
-        result
     }
 }
 
