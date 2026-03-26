@@ -67,22 +67,13 @@ impl<'src> Parser<'src> {
                     if let Some(Ok(id_token)) = self.peek_n(2)
                         && id_token.kind == TokenKind::Id
                     {
-                        let var_decl = self.var_decl_list(true)?;
-                        var_decls.push(match var_decl {
-                            Node::VarDecl(decl) => decl,
-                            _ => todo!(),
-                        });
+                        var_decls.push(self.var_decl_list()?);
                     };
                 }
                 kind if TYPE_SPECIFIERS.contains(&kind) => {
                     // Check if it's a variable or method declaration
                     // For now, let's just parse variable declarations
-                    let var_decl_node = self.var_decl_list(true)?;
-                    let var_decl = match var_decl_node {
-                        Node::VarDecl(decl) => decl,
-                        _ => panic!("Expected VarDecl"),
-                    };
-                    var_decls.push(var_decl);
+                    var_decls.push(self.var_decl_list()?);
                 }
                 TokenKind::Public => {
                     // Method declaration
@@ -119,7 +110,7 @@ impl<'src> Parser<'src> {
     // NOTE: The tests treat variable declaration lists differently depending on context, most of
     // the times a list with only one declaration is unwrapped into a `VarDecl`, while in others
     // it's still kept as a `VarDeclList`
-    fn var_decl_list(&mut self, unwrap_single_decl: bool) -> NodeResult {
+    fn var_decl_list(&mut self) -> ParseResult<VarDeclList> {
         let mut decls = Vec::new();
         // Parse type
         let ty = self.type_specifier().ok_or(NodeErr::Eof)??;
@@ -137,14 +128,10 @@ impl<'src> Parser<'src> {
         // Parse ";"
         advance!(self, &[TokenKind::Semicolon])?;
 
-        if decls.len() == 1 && unwrap_single_decl {
-            Ok(Node::VarDecl(decls.into_iter().next().unwrap()))
-        } else {
-            Ok(Node::VarDeclList(VarDeclList {
-                decls,
-                token: ty.token,
-            }))
-        }
+        Ok(VarDeclList {
+            decls,
+            token: ty.token,
+        })
     }
 
     /// Parses a single variable declaration after a type_specifier
@@ -221,7 +208,7 @@ impl<'src> Parser<'src> {
     }
 
     /// Returns the next token, without consuming it
-    fn peek(&mut self) -> Option<TokenResult> {
+    fn peek(&self) -> Option<TokenResult> {
         if self.idx != self.tokens.len() {
             Some(self.tokens[self.idx])
         } else {
@@ -232,10 +219,25 @@ impl<'src> Parser<'src> {
     /// Returns the n-th next token, without consuming it
     ///
     /// NOTE: `peek_n(1)` is equivalent to `peek()`
-    fn peek_n(&mut self, n: usize) -> Option<TokenResult> {
+    fn peek_n(&self, n: usize) -> Option<TokenResult> {
         let idx = self.idx + n - 1;
         if idx != self.tokens.len() {
             Some(self.tokens[idx])
+        } else {
+            None
+        }
+    }
+
+    fn peek_n_is<C>(&self, n: usize, cond: &mut C) -> Option<TokenResult>
+    where
+        C: FnMut(&Token) -> bool,
+    {
+        if let Some(Ok(token)) = self.peek_n(n) {
+            if (cond)(&token) {
+                Some(Ok(token))
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -560,12 +562,8 @@ impl<'src> Parser<'src> {
                     match self.peek_n(2) {
                         Some(Ok(t)) => match t.kind {
                             TokenKind::Id => {
-                                let decl = self.var_decl_list(true)?;
-                                let decl = match decl {
-                                    Node::VarDecl(decl) => decl,
-                                    _ => panic!("Expected VarDecl"),
-                                };
-                                Ok(Statement::VarDecl(decl))
+                                let decl = self.var_decl_list()?;
+                                Ok(Statement::VarDeclList(decl))
                             }
                             _ => {
                                 // Assume it's an expression statement
@@ -576,13 +574,7 @@ impl<'src> Parser<'src> {
                     }
                 }
                 kind if TYPE_SPECIFIERS.contains(&kind) => {
-                    // Variable declaration
-                    let var_decl_node = self.var_decl_list(true)?;
-                    match var_decl_node {
-                        Node::VarDecl(decl) => Ok(Statement::VarDecl(decl)),
-                        Node::VarDeclList(decl_list) => Ok(Statement::VarDeclList(decl_list)),
-                        _ => panic!("Expected VarDecl"),
-                    }
+                    Ok(Statement::VarDeclList(self.var_decl_list()?))
                 }
                 TokenKind::Print => {
                     // Print statement
@@ -674,13 +666,10 @@ impl<'src> Parser<'src> {
                 .is_some_and(|result| result.is_ok_and(|tok| tok.kind == TokenKind::Id))
         {
             // var_decl_list() consumes the ';'
-            let mut init = self.var_decl_list(false)?;
+            let mut init = self.var_decl_list()?;
             // NOTE: for some reason tests expect DeclList's token to be the same as the for statement
-            match init {
-                Node::VarDeclList(ref mut list) => list.token = token,
-                _ => unreachable!(),
-            };
-            init
+            init.token = token;
+            Node::VarDeclList(init)
         } else {
             let expr = Node::Expr(self.expr()?);
             advance!(self, &[TokenKind::Semicolon])?;

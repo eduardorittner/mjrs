@@ -41,7 +41,7 @@ pub struct ClassDecl {
     pub name: Box<Id>,
     pub token: Token,
     // TODO: add extends
-    pub var_decls: Vec<VarDecl>,
+    pub var_decls: Vec<VarDeclList>,
     pub method_decls: Vec<MethodDecl>,
     pub body: Block,
 }
@@ -99,6 +99,7 @@ pub struct VarDecl {
     pub init: Option<Box<Node>>,
 }
 
+// TODO: this could be an expression variant instead of a Node variant
 #[derive(Debug, Clone, PartialEq)]
 pub struct InitList {
     pub items: Vec<Expr>,
@@ -116,7 +117,6 @@ pub struct MainMethodDecl {
     pub name: Box<Id>,
     pub param_list: Box<ParamList>,
     pub body: Block,
-    // TODO: remove this token field, implement NodeToken
     pub token: Token,
 }
 
@@ -126,14 +126,12 @@ pub struct RegularMethodDecl {
     pub name: Box<Id>,
     pub param_list: Box<ParamList>,
     pub body: Block,
-    // TODO: remove this token field, implement NodeToken
     pub token: Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     pub stmts: Vec<Statement>,
-    // TODO: remove this token field
     pub token: Token,
 }
 
