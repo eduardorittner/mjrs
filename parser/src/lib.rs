@@ -417,8 +417,30 @@ impl<'src> Parser<'src> {
                                 token: id_token.0,
                             },
                         })
+                    } else if let Some(ty_token) =
+                        self.advance_if(&[TokenKind::Char, TokenKind::Int])
+                    {
+                        advance!(self, &[TokenKind::LeftBracket])?;
+                        let size = self.expr()?;
+                        advance!(self, &[TokenKind::RightBracket])?;
+
+                        Ok(Expr::NewArray {
+                            token,
+                            ty: match ty_token.kind {
+                                TokenKind::Char => Type {
+                                    ty: TypeKind::CharArray,
+                                    token: ty_token,
+                                },
+                                TokenKind::Int => Type {
+                                    ty: TypeKind::IntArray,
+                                    token: ty_token,
+                                },
+                                _ => unreachable!(),
+                            },
+                            size: Box::new(size),
+                        })
                     } else {
-                        todo!()
+                        unreachable!()
                     }
                 }
                 TokenKind::StringLiteral => {

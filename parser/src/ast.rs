@@ -219,6 +219,11 @@ pub enum Expr {
         token: Token,
         ty: Type,
     },
+    NewArray {
+        token: Token,
+        ty: Type,
+        size: Box<Expr>,
+    },
     Unary {
         op: Token,
         operand: Box<Node>,
@@ -310,6 +315,7 @@ impl NodeToken for Expr {
             | Expr::True(token)
             | Expr::Identifier(Id(token))
             | Expr::New { token, .. }
+            | Expr::NewArray { token, .. }
             | Expr::Unary { op: token, .. }
             | Expr::Binary { op: token, .. }
             | Expr::This(token) => *token,
@@ -654,6 +660,20 @@ impl<'src> Show<'src> for Expr {
                 Self::indent(indent),
                 token.formatted_pos(),
                 ty.show(&input, indent + Self::TAB)
+            ),
+            Expr::NewArray { token, ty, size } => format!(
+                "{}NewArray: {}\n{}Type: {}\n{}",
+                Self::indent(indent),
+                token.formatted_pos(),
+                Self::indent(indent + Self::TAB),
+                if ty.ty == TypeKind::IntArray {
+                    "int[]"
+                } else if ty.ty == TypeKind::CharArray {
+                    "char[]"
+                } else {
+                    unreachable!()
+                },
+                size.show(input, indent + Self::TAB)
             ),
             Expr::Unary { op, operand } => {
                 format!(
