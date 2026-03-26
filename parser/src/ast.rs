@@ -192,6 +192,7 @@ pub struct ParamList {
 pub enum Expr {
     IntLiteral(Token),
     CharLiteral(Token),
+    StringLiteral(Token),
     True(Token),
     False(Token),
     This(Token),
@@ -271,6 +272,7 @@ impl NodeToken for Expr {
         match self {
             Expr::IntLiteral(token)
             | Expr::CharLiteral(token)
+            | Expr::StringLiteral(token)
             | Expr::False(token)
             | Expr::True(token)
             | Expr::Identifier(Id(token))
@@ -495,6 +497,7 @@ impl<'src> Show<'src> for Statement {
             Statement::VarDecl(var_decl) => var_decl.show(input, indent),
             Statement::VarDeclList(node) => node.show(input, indent),
             Statement::Print(node) => {
+                println!("{node:?}");
                 let mut result = format!(
                     "{}Print: {}\n",
                     Self::indent(indent),
@@ -573,7 +576,15 @@ impl<'src> Show<'src> for Expr {
                     tok.formatted_pos(),
                 )
             }
-            Expr::True(_) => "True".to_string(),
+            Expr::StringLiteral(tok) => {
+                format!(
+                    "{}Constant: String, {} {}\n",
+                    Self::indent(indent),
+                    tok.value(input),
+                    tok.formatted_pos(),
+                )
+            }
+            Expr::True(tok) => format!("{}True", Self::indent(indent)),
             Expr::False(_) => "False".to_string(),
             Expr::This(token) => {
                 format!("{}This: {}\n", Self::indent(indent), token.formatted_pos())

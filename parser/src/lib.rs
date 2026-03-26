@@ -378,7 +378,7 @@ impl<'src> Parser<'src> {
                 }
                 TokenKind::StringLiteral => {
                     self.idx += 1;
-                    Ok(Expr::True(token)) // Placeholder for now)
+                    Ok(Expr::StringLiteral(token))
                 }
                 TokenKind::IntLiteral => {
                     self.idx += 1;
