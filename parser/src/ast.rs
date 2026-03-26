@@ -635,8 +635,16 @@ impl<'src> Show<'src> for Expr {
                     tok.formatted_pos(),
                 )
             }
-            Expr::True(_tok) => format!("{}True", Self::indent(indent)),
-            Expr::False(_) => "False".to_string(),
+            Expr::True(tok) => format!(
+                "{}Constant: boolean, true {}\n",
+                Self::indent(indent),
+                tok.formatted_pos()
+            ),
+            Expr::False(tok) => format!(
+                "{}Constant: boolean, false {}\n",
+                Self::indent(indent),
+                tok.formatted_pos()
+            ),
             Expr::This(token) => {
                 format!("{}This: {}\n", Self::indent(indent), token.formatted_pos())
             }
