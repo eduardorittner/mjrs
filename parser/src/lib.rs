@@ -535,7 +535,27 @@ impl<'src> Parser<'src> {
     fn stmt(&mut self) -> ParseResult<Statement> {
         if let Some(Ok(token)) = self.peek() {
             match token.kind {
-                TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
+                TokenKind::Id => {
+                    // Either expression statement or declaration
+                    match self.peek_n(2) {
+                        Some(Ok(t)) => match t.kind {
+                            TokenKind::Id => {
+                                let decl = self.var_decl_list(true)?;
+                                let decl = match decl {
+                                    Node::VarDecl(decl) => decl,
+                                    _ => panic!("Expected VarDecl"),
+                                };
+                                Ok(Statement::VarDecl(decl))
+                            }
+                            _ => {
+                                // Assume it's an expression statement
+                                self.expr_stmt()
+                            }
+                        },
+                        _ => unimplemented!(),
+                    }
+                }
+                kind if TYPE_SPECIFIERS.contains(&kind) => {
                     // Variable declaration
                     let var_decl_node = self.var_decl_list(true)?;
                     match var_decl_node {
@@ -572,26 +592,6 @@ impl<'src> Parser<'src> {
                         token: return_token,
                         expr,
                     }))
-                }
-                TokenKind::Id => {
-                    // Either expression statement or declaration
-                    match self.peek_n(2) {
-                        Some(Ok(t)) => match t.kind {
-                            TokenKind::Id => {
-                                let decl = self.var_decl_list(true)?;
-                                let decl = match decl {
-                                    Node::VarDecl(decl) => decl,
-                                    _ => panic!("Expected VarDecl"),
-                                };
-                                Ok(Statement::VarDecl(decl))
-                            }
-                            _ => {
-                                // Assume it's an expression statement
-                                self.expr_stmt()
-                            }
-                        },
-                        _ => unimplemented!(),
-                    }
                 }
                 TokenKind::This => self.expr_stmt(),
                 TokenKind::Assert => self.assert_stmt().map(|ok| Statement::Assert(ok)),
