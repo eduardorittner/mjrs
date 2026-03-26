@@ -452,11 +452,28 @@ impl<'src> Show<'src> for While {
 
 impl<'src> Show<'src> for For {
     fn show(&self, input: &'src str, indent: usize) -> String {
+        // NOTE: DeclLists are formatted differently inside for statements
+        let show_decl_list_inside_for = |decl_list: &Box<Node>| -> String {
+            format!(
+                "{}DeclList: {}\n{}",
+                Self::indent(indent + Self::TAB),
+                self.token.formatted_pos(),
+                match decl_list.as_ref() {
+                    Node::VarDeclList(var_decl_list) => var_decl_list,
+                    _ => unreachable!(),
+                }
+                .decls
+                .iter()
+                .map(|decl| decl.show(input, indent + 2 * Self::TAB))
+                .collect::<String>()
+            )
+        };
+
         format!(
             "{}For: {}\n{}{}{}{}",
             Self::indent(indent),
             self.token.formatted_pos(),
-            self.init.show(input, indent + Self::TAB),
+            show_decl_list_inside_for(&self.init),
             self.cond
                 .iter()
                 .map(|cond| cond.show(input, indent + Self::TAB))
@@ -646,15 +663,10 @@ impl<'src> Show<'src> for VarDecl {
 
 impl<'src> Show<'src> for VarDeclList {
     fn show(&self, input: &'src str, indent: usize) -> String {
-        format!(
-            "{}DeclList: {}\n{}",
-            Self::indent(indent),
-            self.token.formatted_pos(),
-            self.decls
-                .iter()
-                .map(|decl| decl.show(input, indent + Self::TAB))
-                .collect::<String>()
-        )
+        self.decls
+            .iter()
+            .map(|decl| decl.show(input, indent))
+            .collect()
     }
 }
 
