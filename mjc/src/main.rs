@@ -2,6 +2,7 @@ use std::{fs, process::exit};
 
 use gumdrop::Options;
 use lexer::{lexer::Lexer, token::fmt_tokens};
+use parser::{Parser, ast::Show};
 
 #[derive(Debug, Options)]
 struct Opts {
@@ -36,5 +37,14 @@ fn main() {
     if opts.lex {
         let tokens = Lexer::lex(&file_contents);
         println!("{}", fmt_tokens(&tokens, &file_contents));
+    } else if opts.parse {
+        let tokens = Lexer::lex(&file_contents);
+        let mut parser = Parser::new(&tokens);
+        let ast = parser.parse();
+
+        match ast {
+            Ok(ast) => println!("{}", ast.show(&file_contents, 0)),
+            Err(e) => eprintln!("{e:?}"),
+        }
     }
 }
