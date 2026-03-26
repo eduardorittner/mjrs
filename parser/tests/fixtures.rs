@@ -13,7 +13,13 @@ fn fixtures(#[files("../fixtures/parser/*.in")] path: PathBuf) {
 
     let tokens = &Lexer::lex(&input);
     let mut parser = Parser::new(&input, tokens);
-    let ast = parser.parse().expect("Failed to parse");
 
-    pretty_assertions::assert_str_eq!(output, ast.show(&input, 0));
+    match parser.parse() {
+        Ok(ast) => {
+            pretty_assertions::assert_str_eq!(output, ast.show(&input, 0));
+        }
+        Err(e) => {
+            pretty_assertions::assert_str_eq!(output, e.fmt_for_test(&input));
+        }
+    }
 }

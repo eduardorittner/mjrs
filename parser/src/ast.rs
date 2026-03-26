@@ -777,3 +777,17 @@ impl From<TokenError> for NodeErr {
         Self::LexErr(value)
     }
 }
+
+impl NodeErr {
+    pub fn fmt_for_test(&self, input: &str) -> String {
+        match self {
+            NodeErr::Unexpected { actual, .. } => format!(
+                "ParserError: Before {} {}\n",
+                actual.value(input),
+                actual.formatted_pos()
+            ),
+            NodeErr::Eof => todo!(),
+            NodeErr::LexErr(_) => todo!(),
+        }
+    }
+}
