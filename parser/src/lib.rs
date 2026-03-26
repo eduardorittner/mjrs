@@ -645,9 +645,7 @@ impl<'src> Parser<'src> {
             match token.kind {
                 TokenKind::Int | TokenKind::Char | TokenKind::Boolean => {
                     // Variable declaration
-                    let var_decl_node = self
-                        .var_decl_list(true)
-                        .expect("Expected variable declaration");
+                    let var_decl_node = self.var_decl_list(true)?;
                     match var_decl_node {
                         Node::VarDecl(decl) => Ok(Statement::VarDecl(decl)),
                         Node::VarDeclList(decl_list) => Ok(Statement::VarDeclList(decl_list)),
@@ -656,31 +654,27 @@ impl<'src> Parser<'src> {
                 }
                 TokenKind::Print => {
                     // Print statement
-                    let print = advance!(self, &[TokenKind::Print]).expect("checked before-hand");
-                    advance!(self, &[TokenKind::LeftParen]).expect("Expected '('");
+                    let print = advance!(self, &[TokenKind::Print])?;
+                    advance!(self, &[TokenKind::LeftParen])?;
                     let args = self.args()?;
-                    advance!(self, &[TokenKind::RightParen]).expect("Expected ')'");
-                    advance!(self, &[TokenKind::Semicolon]).expect("Expected ';'");
+                    advance!(self, &[TokenKind::RightParen])?;
+                    advance!(self, &[TokenKind::Semicolon])?;
 
                     Ok(Statement::Print(Print { args, token: print }))
                 }
                 TokenKind::Break => {
-                    let break_token =
-                        advance!(self, &[TokenKind::Break]).expect("checked before-hand");
+                    let break_token = advance!(self, &[TokenKind::Break])?;
 
-                    advance!(self, &[TokenKind::Semicolon])
-                        .expect("expected ';' after 'break' keyword");
+                    advance!(self, &[TokenKind::Semicolon])?;
 
                     Ok(Statement::Break(break_token))
                 }
                 TokenKind::Return => {
-                    let return_token =
-                        advance!(self, &[TokenKind::Return]).expect("checked before-hand");
+                    let return_token = advance!(self, &[TokenKind::Return])?;
 
                     let expr = self.expr_try();
 
-                    advance!(self, &[TokenKind::Semicolon])
-                        .expect("expected ';' after 'return' keyword and expression");
+                    advance!(self, &[TokenKind::Semicolon])?;
 
                     Ok(Statement::Return(Return {
                         token: return_token,
