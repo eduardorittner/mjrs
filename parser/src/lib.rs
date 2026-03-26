@@ -1,8 +1,8 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    Block, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult, ParseResult, Print,
-    RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList,
+    Assert, Block, Expr, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult, ParseResult,
+    Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList,
 };
 
 pub mod ast;
@@ -659,9 +659,10 @@ impl<'src> Parser<'src> {
                     }
                 }
                 TokenKind::This => self.expr_stmt(),
+                TokenKind::Assert => self.assert_stmt().map(|ok| Statement::Assert(ok)),
                 TokenKind::If => self.if_stmt(),
                 TokenKind::LeftBrace => Ok(Statement::Block(self.compound_stmt()?)),
-                _ => unreachable!(),
+                tok => panic!("{tok:?}"),
             }
         } else {
             Err(NodeErr::Eof)
@@ -696,6 +697,15 @@ impl<'src> Parser<'src> {
         })
     }
 
+    fn assert_stmt(&mut self) -> ParseResult<Assert> {
+        let token = advance!(self, &[TokenKind::Assert])?;
+        let cond = self.expr()?;
+        advance!(self, &[TokenKind::Semicolon])?;
+
+        Ok(Assert { token, cond })
+    }
+
+    // TODO: make this return `If`
     fn if_stmt(&mut self) -> ParseResult<Statement> {
         let if_token = advance!(self, &[TokenKind::If])?;
 

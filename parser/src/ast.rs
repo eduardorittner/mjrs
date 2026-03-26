@@ -134,6 +134,13 @@ pub enum Statement {
     Break(Token),
     Return(Return),
     If(If),
+    Assert(Assert),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Assert {
+    pub token: Token,
+    pub cond: Expr,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -363,6 +370,17 @@ impl<'src> Show<'src> for RegularMethodDecl {
     }
 }
 
+impl<'src> Show<'src> for Assert {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        format!(
+            "{}Assert: {}\n{}",
+            Self::indent(indent),
+            self.token.formatted_pos(),
+            self.cond.show(input, indent + Self::TAB)
+        )
+    }
+}
+
 impl<'src> Show<'src> for Block {
     fn show(&self, input: &'src str, indent: usize) -> String {
         let mut result = format!(
@@ -398,6 +416,7 @@ impl<'src> Show<'src> for If {
 impl<'src> Show<'src> for Statement {
     fn show(&self, input: &'src str, indent: usize) -> String {
         match self {
+            Statement::Assert(assert) => assert.show(input, indent),
             Statement::Block(block) => block.show(input, indent),
             Statement::VarDecl(var_decl) => var_decl.show(input, indent),
             Statement::VarDeclList(node) => node.show(input, indent),
