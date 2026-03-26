@@ -235,7 +235,7 @@ pub enum Expr {
     MethodCall {
         object: Box<Expr>,
         name: Id,
-        args: Vec<Expr>,
+        args: ExprList,
     },
     Assignment {
         lhs: Box<Expr>,
@@ -689,9 +689,7 @@ impl<'src> Show<'src> for Expr {
                     object.token().formatted_pos(),
                     object.show(input, indent + Self::TAB),
                     name.show(input, indent + Self::TAB),
-                    args.iter()
-                        .map(|arg| arg.show(input, indent + Self::TAB))
-                        .collect::<String>()
+                    args.show(input, indent + Self::TAB)
                 )
             }
             Expr::Length { object } => {

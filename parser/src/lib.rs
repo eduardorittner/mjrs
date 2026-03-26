@@ -346,7 +346,7 @@ impl<'src> Parser<'src> {
                 expr = Expr::MethodCall {
                     name: field,
                     object: Box::new(expr),
-                    args: args.exprs,
+                    args: args,
                 }
             } else {
                 expr = Expr::FieldAccess {
