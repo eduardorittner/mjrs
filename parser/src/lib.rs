@@ -328,6 +328,14 @@ impl<'src> Parser<'src> {
         // postfix operators
         while let Some(_dot_token) = self.advance_if(&[TokenKind::Dot]) {
             // Expect an identifier after the dot
+            if let Some(length) = self.advance_if(&[TokenKind::Length]) {
+                expr = Expr::Length {
+                    object: Box::new(expr),
+                };
+
+                // Nothing is allowed after `length`
+                return Ok(expr);
+            }
             let field_token = advance!(self, &[TokenKind::Id])?;
             let field = Id(field_token);
 

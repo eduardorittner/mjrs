@@ -245,6 +245,9 @@ pub enum Expr {
         object: Box<Expr>,
         idx: Box<Expr>,
     },
+    Length {
+        object: Box<Expr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -312,10 +315,11 @@ impl NodeToken for Expr {
             | Expr::Unary { op: token, .. }
             | Expr::Binary { op: token, .. }
             | Expr::This(token) => *token,
-            Expr::FieldAccess { object, .. } => object.token(),
-            Expr::MethodCall { object, .. } => object.token(),
+            Expr::Length { object }
+            | Expr::FieldAccess { object, .. }
+            | Expr::MethodCall { object, .. }
+            | Expr::ArrayRef { object, .. } => object.token(),
             Expr::Assignment { lhs, .. } => lhs.token(),
-            Expr::ArrayRef { object, .. } => object.token(),
         }
     }
 }
@@ -688,6 +692,14 @@ impl<'src> Show<'src> for Expr {
                     args.iter()
                         .map(|arg| arg.show(input, indent + Self::TAB))
                         .collect::<String>()
+                )
+            }
+            Expr::Length { object } => {
+                format!(
+                    "{}Length: {}\n{}",
+                    Self::indent(indent),
+                    object.token().formatted_pos(),
+                    object.show(input, indent + Self::TAB),
                 )
             }
             Expr::Assignment { lhs, rhs } => {
