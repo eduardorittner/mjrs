@@ -120,7 +120,6 @@ impl<'src> Parser<'src> {
         let mut decls = Vec::new();
         // Parse type
         let ty = self.type_specifier().ok_or(NodeErr::Eof)??;
-        println!("{ty:?}");
 
         while let Ok(var_decl) = self.var_decl(ty) {
             decls.push(var_decl);
@@ -131,8 +130,6 @@ impl<'src> Parser<'src> {
 
             break;
         }
-
-        println!("{decls:?}");
 
         // Parse ";"
         advance!(self, &[TokenKind::Semicolon])?;
