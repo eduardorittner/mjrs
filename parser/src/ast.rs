@@ -82,6 +82,7 @@ impl TryFrom<Token> for TypeKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct VarDeclList {
     pub decls: Vec<VarDecl>,
+    pub token: Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,6 +136,7 @@ pub enum Statement {
     Return(Return),
     If(If),
     While(While),
+    For(For),
     Assert(Assert),
 }
 
@@ -156,6 +158,16 @@ pub struct If {
 pub struct While {
     pub token: Token,
     pub cond: Expr,
+    pub block: Box<Statement>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct For {
+    pub token: Token,
+    // NOTE: this can be either an `Expr`, `VarDecl` or `VarDeclList`
+    pub init: Box<Node>,
+    pub cond: Option<Expr>,
+    pub tick: Option<Expr>,
     pub block: Box<Statement>,
 }
 
@@ -297,12 +309,13 @@ impl<'src> Show<'src> for Node {
             }
             Node::ClassDecl(class_decl) => class_decl.show(input, indent),
             Node::VarDecl(var_decl) => var_decl.show(input, indent),
+            Node::VarDeclList(var_decl) => var_decl.show(input, indent),
             Node::MethodDecl(method_decl) => match method_decl {
                 MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
                 MethodDecl::Regular(method) => method.show(input, indent + Self::TAB),
             },
             Node::Expr(expr) => expr.show(input, indent),
-            _ => format!("Node({:?})", self.token()),
+            _ => format!("no formatting for {self:?})"),
         }
     }
 }
@@ -437,6 +450,26 @@ impl<'src> Show<'src> for While {
     }
 }
 
+impl<'src> Show<'src> for For {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        format!(
+            "{}For: {}\n{}{}{}{}",
+            Self::indent(indent),
+            self.token.formatted_pos(),
+            self.init.show(input, indent + Self::TAB),
+            self.cond
+                .iter()
+                .map(|cond| cond.show(input, indent + Self::TAB))
+                .collect::<String>(),
+            self.tick
+                .iter()
+                .map(|tick| tick.show(input, indent + Self::TAB))
+                .collect::<String>(),
+            self.block.show(input, indent + Self::TAB),
+        )
+    }
+}
+
 impl<'src> Show<'src> for Statement {
     fn show(&self, input: &'src str, indent: usize) -> String {
         match self {
@@ -472,6 +505,7 @@ impl<'src> Show<'src> for Statement {
             Statement::Expr(expr) => expr.show(input, indent),
             Statement::If(node) => node.show(input, indent),
             Statement::While(node) => node.show(input, indent),
+            Statement::For(node) => node.show(input, indent),
         }
     }
 }
@@ -612,10 +646,15 @@ impl<'src> Show<'src> for VarDecl {
 
 impl<'src> Show<'src> for VarDeclList {
     fn show(&self, input: &'src str, indent: usize) -> String {
-        self.decls
-            .iter()
-            .map(|decl| decl.show(input, indent))
-            .collect()
+        format!(
+            "{}DeclList: {}\n{}",
+            Self::indent(indent),
+            self.token.formatted_pos(),
+            self.decls
+                .iter()
+                .map(|decl| decl.show(input, indent + Self::TAB))
+                .collect::<String>()
+        )
     }
 }
 
