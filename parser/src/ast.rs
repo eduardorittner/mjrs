@@ -200,6 +200,7 @@ pub struct ParamList {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExprList {
     pub exprs: Vec<Expr>,
+    pub token: Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -276,7 +277,7 @@ impl NodeToken for Node {
             Node::InitList(node) => node.items[0].token(),
             Node::VarDeclList(node) => node.decls[0].token(),
             Node::VarDecl(node) => node.ty.token,
-            Node::ExprList(exprs) => exprs.token(),
+            Node::ExprList(exprs) => exprs.token,
             Node::Expr(node) => node.token(),
             Node::Statement(_node) => todo!(),
             Node::Id(node) => node.0,
@@ -293,12 +294,6 @@ impl NodeToken for VarDecl {
 impl NodeToken for InitList {
     fn token(&self) -> Token {
         self.items[0].token()
-    }
-}
-
-impl NodeToken for ExprList {
-    fn token(&self) -> Token {
-        self.exprs[0].token()
     }
 }
 
@@ -495,7 +490,7 @@ impl<'src> Show<'src> for For {
         // NOTE: DeclLists are formatted differently inside for statements
         let show_init = |init: &Box<Node>| -> String {
             match init.as_ref() {
-                Node::VarDeclList(var_decl_list) => {
+                Node::VarDeclList(_) => {
                     format!(
                         "{}DeclList: {}\n{}",
                         Self::indent(indent + Self::TAB),
@@ -597,7 +592,7 @@ impl<'src> Show<'src> for ExprList {
             format!(
                 "{}ExprList: {}\n{}",
                 Self::indent(indent),
-                self.token().formatted_pos(),
+                self.token.formatted_pos(),
                 self.exprs
                     .iter()
                     .map(|expr| expr.show(input, indent + Self::TAB))
@@ -637,7 +632,7 @@ impl<'src> Show<'src> for Expr {
                     tok.formatted_pos(),
                 )
             }
-            Expr::True(tok) => format!("{}True", Self::indent(indent)),
+            Expr::True(_tok) => format!("{}True", Self::indent(indent)),
             Expr::False(_) => "False".to_string(),
             Expr::This(token) => {
                 format!("{}This: {}\n", Self::indent(indent), token.formatted_pos())

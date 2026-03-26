@@ -244,6 +244,8 @@ impl<'src> Parser<'src> {
     fn args(&mut self) -> ParseResult<ExprList> {
         let mut args = Vec::new();
 
+        let token = self.peek().unwrap()?;
+
         while let Some(expr) = self.expr_try() {
             args.push(expr);
             if self.advance_if(&[TokenKind::Comma]).is_none() {
@@ -251,7 +253,7 @@ impl<'src> Parser<'src> {
             }
         }
 
-        Ok(ExprList { exprs: args })
+        Ok(ExprList { exprs: args, token })
     }
 
     fn expr_try(&mut self) -> Option<Expr> {
