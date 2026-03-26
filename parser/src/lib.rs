@@ -717,8 +717,7 @@ impl<'src> Parser<'src> {
 
     fn compound_stmt(&mut self) -> ParseResult<Block> {
         // Parse "{"
-        let compound_start = advance!(self, &[TokenKind::LeftBrace])
-            .expect("Expected '{' to start compound statement");
+        let compound_start = advance!(self, &[TokenKind::LeftBrace])?;
 
         let mut stmts = Vec::new();
 
