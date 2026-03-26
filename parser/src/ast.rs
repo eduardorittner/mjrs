@@ -41,7 +41,7 @@ pub struct ClassDecl {
     // TODO: add extends
     pub var_decls: Vec<VarDecl>,
     pub method_decls: Vec<MethodDecl>,
-    pub body: Compound,
+    pub body: Block,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -102,7 +102,7 @@ pub struct MainMethodDecl {
     pub ty: Box<Type>,
     pub name: Box<Id>,
     pub param_list: Box<ParamList>,
-    pub body: Compound,
+    pub body: Block,
     // TODO: remove this token field, implement NodeToken
     pub token: Token,
 }
@@ -112,13 +112,13 @@ pub struct RegularMethodDecl {
     pub ty: Box<Type>,
     pub name: Box<Id>,
     pub param_list: Box<ParamList>,
-    pub body: Compound,
+    pub body: Block,
     // TODO: remove this token field, implement NodeToken
     pub token: Token,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Compound {
+pub struct Block {
     pub stmts: Vec<Statement>,
     // TODO: remove this token field
     pub token: Token,
@@ -350,7 +350,7 @@ impl<'src> Show<'src> for RegularMethodDecl {
     }
 }
 
-impl<'src> Show<'src> for Compound {
+impl<'src> Show<'src> for Block {
     fn show(&self, input: &'src str, indent: usize) -> String {
         let mut result = format!(
             "{}Compound: {}\n",
