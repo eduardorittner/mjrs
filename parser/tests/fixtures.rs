@@ -12,7 +12,7 @@ fn fixtures(#[files("../fixtures/parser/*.in")] path: PathBuf) {
     let output = fs::read_to_string(output_path).unwrap();
 
     let tokens = &Lexer::lex(&input);
-    let mut parser = Parser::new(&input, tokens);
+    let mut parser = Parser::new(tokens);
 
     match parser.parse() {
         Ok(ast) => {

@@ -9,9 +9,6 @@ use crate::ast::{
 pub mod ast;
 
 pub struct Parser<'src> {
-    /// Needed for reading the values from literals and identifiers
-    input: &'src str,
-
     tokens: &'src Vec<TokenResult>,
 
     /// Current position inside `tokens`
@@ -25,12 +22,8 @@ macro_rules! advance {
 }
 
 impl<'src> Parser<'src> {
-    pub fn new(input: &'src str, tokens: &'src Vec<TokenResult>) -> Parser<'src> {
-        Parser {
-            input,
-            tokens,
-            idx: 0,
-        }
+    pub fn new(tokens: &'src Vec<TokenResult>) -> Parser<'src> {
+        Parser { tokens, idx: 0 }
     }
 
     /// Returns the root `Node` of the parsed ast
@@ -329,7 +322,7 @@ impl<'src> Parser<'src> {
         // postfix operators
         while let Some(_dot_token) = self.advance_if(&[TokenKind::Dot]) {
             // Expect an identifier after the dot
-            if let Some(length) = self.advance_if(&[TokenKind::Length]) {
+            if let Some(_) = self.advance_if(&[TokenKind::Length]) {
                 expr = Expr::Length {
                     object: Box::new(expr),
                 };
