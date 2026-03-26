@@ -63,8 +63,11 @@ pub enum TypeKind {
     Int,
     String,
     Custom,
+    // TODO: a better way to do this would be to have something like
+    // Array(Box<TypeKind>) so we don't need to hardcode each variant
     IntArray,
     CharArray,
+    StringArray,
 }
 
 impl TryFrom<Token> for TypeKind {

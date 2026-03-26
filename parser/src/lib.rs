@@ -2,8 +2,8 @@ use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
     Assert, Block, Expr, ExprList, For, Id, InitList, MainMethodDecl, MethodDecl, Node, NodeErr,
-    NodeResult, ParseResult, Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl,
-    VarDeclList, While,
+    NodeResult, ParamList, ParseResult, Print, RegularMethodDecl, Return, Statement, Type,
+    TypeKind, VarDecl, VarDeclList, While,
 };
 
 pub mod ast;
@@ -467,7 +467,7 @@ impl<'src> Parser<'src> {
         // Consume optional static keyword
         self.advance_if(&[TokenKind::Static]);
 
-        let return_type = advance!(
+        let token = advance!(
             self,
             &[
                 TokenKind::Void,
@@ -477,24 +477,9 @@ impl<'src> Parser<'src> {
             ]
         )?;
 
-        let return_type = match return_type.kind {
-            TokenKind::Void => crate::ast::Type {
-                ty: crate::ast::TypeKind::Custom,
-                token: return_type,
-            },
-            TokenKind::Int => crate::ast::Type {
-                ty: crate::ast::TypeKind::Int,
-                token: return_type,
-            },
-            TokenKind::Char => crate::ast::Type {
-                ty: crate::ast::TypeKind::Char,
-                token: return_type,
-            },
-            TokenKind::Boolean => crate::ast::Type {
-                ty: crate::ast::TypeKind::Boolean,
-                token: return_type,
-            },
-            _ => unreachable!(),
+        let return_type = Type {
+            ty: TypeKind::try_from(token).unwrap(),
+            token,
         };
 
         let name_token = advance!(self, &[TokenKind::Id, TokenKind::Main])?;
@@ -502,7 +487,7 @@ impl<'src> Parser<'src> {
 
         advance!(self, &[TokenKind::LeftParen])?;
 
-        let param_list = self.param_list();
+        let param_list = self.param_list()?;
 
         advance!(self, &[TokenKind::RightParen])?;
 
@@ -527,119 +512,25 @@ impl<'src> Parser<'src> {
         })
     }
 
-    fn param_list(&mut self) -> crate::ast::ParamList {
-        // Parse parameter list: (Type Id, Type Id, ...)
+    fn param_list(&mut self) -> ParseResult<ParamList> {
         let mut params = Vec::new();
 
-        // Check if there are any parameters
-        if let Some(Ok(token)) = self.peek() {
-            if token.kind != TokenKind::RightParen {
-                // Parse first parameter
-                let type_token = advance!(
-                    self,
-                    &[
-                        TokenKind::Int,
-                        TokenKind::Char,
-                        TokenKind::Boolean,
-                        TokenKind::String,
-                    ]
-                )
-                .expect("Expected parameter type");
-
-                // Check for array type
-                let param_type = match type_token.kind {
-                    TokenKind::Int => crate::ast::Type {
-                        ty: crate::ast::TypeKind::Int,
-                        token: type_token,
-                    },
-                    TokenKind::Char => crate::ast::Type {
-                        ty: crate::ast::TypeKind::Char,
-                        token: type_token,
-                    },
-                    TokenKind::Boolean => crate::ast::Type {
-                        ty: crate::ast::TypeKind::Boolean,
-                        token: type_token,
-                    },
-                    TokenKind::String => crate::ast::Type {
-                        ty: crate::ast::TypeKind::String,
-                        token: type_token,
-                    },
-                    _ => unreachable!(),
-                };
-
-                // Check for array brackets
-                if let Some(Ok(bracket_token)) = self.peek() {
-                    if bracket_token.kind == TokenKind::LeftBracket {
-                        self.idx += 1; // consume '['
-                        advance!(self, &[TokenKind::RightBracket]).expect("Expected ']'");
-                        // For now, we'll just keep the base type and ignore the array part
-                    }
-                }
-
+        loop {
+            if let Some(Ok(param_type)) = self.type_specifier() {
                 let name_token = advance!(self, &[TokenKind::Id]).expect("Expected parameter name");
                 let param_name = Id(name_token);
-
                 params.push((param_type, param_name));
 
-                // Parse additional parameters
-                while let Some(Ok(comma_token)) = self.peek() {
-                    if comma_token.kind == TokenKind::Comma {
-                        self.idx += 1; // consume comma
-
-                        let type_token = advance!(
-                            self,
-                            &[
-                                TokenKind::Int,
-                                TokenKind::Char,
-                                TokenKind::Boolean,
-                                TokenKind::String,
-                            ]
-                        )
-                        .expect("Expected parameter type");
-
-                        // Check for array type
-                        let param_type = match type_token.kind {
-                            TokenKind::Int => crate::ast::Type {
-                                ty: crate::ast::TypeKind::Int,
-                                token: type_token,
-                            },
-                            TokenKind::Char => crate::ast::Type {
-                                ty: crate::ast::TypeKind::Char,
-                                token: type_token,
-                            },
-                            TokenKind::Boolean => crate::ast::Type {
-                                ty: crate::ast::TypeKind::Boolean,
-                                token: type_token,
-                            },
-                            TokenKind::String => crate::ast::Type {
-                                ty: crate::ast::TypeKind::String,
-                                token: type_token,
-                            },
-                            _ => unreachable!(),
-                        };
-
-                        // Check for array brackets
-                        if let Some(Ok(bracket_token)) = self.peek() {
-                            if bracket_token.kind == TokenKind::LeftBracket {
-                                self.idx += 1; // consume '['
-                                advance!(self, &[TokenKind::RightBracket]).expect("Expected ']'");
-                                // For now, we'll just keep the base type and ignore the array part
-                            }
-                        }
-
-                        let name_token =
-                            advance!(self, &[TokenKind::Id]).expect("Expected parameter name");
-                        let param_name = Id(name_token);
-
-                        params.push((param_type, param_name));
-                    } else {
-                        break;
-                    }
+                if self.advance_if(&[TokenKind::Comma]).is_none() {
+                    break;
                 }
+            } else {
+                // TODO bubble up error
+                break;
             }
         }
 
-        crate::ast::ParamList { params }
+        Ok(ParamList { params })
     }
 
     fn stmt(&mut self) -> ParseResult<Statement> {
@@ -854,6 +745,7 @@ impl<'src> Parser<'src> {
     fn type_specifier(&mut self) -> Option<ParseResult<Type>> {
         if let Some(token) = self.advance_if(&TYPE_SPECIFIERS) {
             match TypeKind::try_from(token) {
+                // TODO: there's duplication in the logic of parsing array types, clean this up
                 Ok(TypeKind::Int) => {
                     if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
                         match advance!(self, &[TokenKind::RightBracket]) {
@@ -883,7 +775,24 @@ impl<'src> Parser<'src> {
                         }))
                     } else {
                         Some(Ok(Type {
-                            ty: TypeKind::Int,
+                            ty: TypeKind::Char,
+                            token,
+                        }))
+                    }
+                }
+                Ok(TypeKind::String) => {
+                    if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
+                        match advance!(self, &[TokenKind::RightBracket]) {
+                            Ok(_) => (),
+                            Err(e) => return Some(Err(e)),
+                        };
+                        Some(Ok(Type {
+                            ty: TypeKind::StringArray,
+                            token,
+                        }))
+                    } else {
+                        Some(Ok(Type {
+                            ty: TypeKind::String,
                             token,
                         }))
                     }
