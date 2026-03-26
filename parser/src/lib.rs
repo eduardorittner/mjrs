@@ -1,9 +1,9 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    Assert, Block, Expr, ExprList, For, Id, InitList, MainMethodDecl, MethodDecl, Node, NodeErr,
-    NodeResult, ParamList, ParseResult, Print, RegularMethodDecl, Return, Statement, Type,
-    TypeKind, VarDecl, VarDeclList, While,
+    Assert, Block, ClassDecl, Expr, ExprList, For, Id, InitList, MainMethodDecl, MethodDecl, Node,
+    NodeErr, NodeResult, ParamList, ParseResult, Print, Program, RegularMethodDecl, Return,
+    Statement, Type, TypeKind, VarDecl, VarDeclList, While,
 };
 
 pub mod ast;
@@ -39,21 +39,20 @@ impl<'src> Parser<'src> {
     }
 
     fn program(&mut self) -> NodeResult {
-        // For now, let's just parse the first class
-        let class_node = self.class_decl()?;
+        let mut classes = Vec::new();
+        while self
+            .peek()
+            .is_some_and(|result| result.is_ok_and(|tok| tok.kind == TokenKind::Class))
+        {
+            classes.push(self.class_decl()?);
+        }
 
         // TODO: maybe make a macro which returns the type or errors?
         // instead of having to always match on returned nodes
-        let class_decl = match class_node {
-            Node::ClassDecl(decl) => decl,
-            _ => panic!("Expected ClassDecl"),
-        };
-        Ok(Node::Program(crate::ast::Program {
-            classes: vec![class_decl],
-        }))
+        Ok(Node::Program(Program { classes }))
     }
 
-    fn class_decl(&mut self) -> NodeResult {
+    fn class_decl(&mut self) -> ParseResult<ClassDecl> {
         // Parse "class" keyword
         let class_token = advance!(self, &[TokenKind::Class])?;
 
@@ -101,7 +100,7 @@ impl<'src> Parser<'src> {
         // Parse "}"
         advance!(self, &[TokenKind::RightBrace])?;
 
-        Ok(Node::ClassDecl(crate::ast::ClassDecl {
+        Ok(ClassDecl {
             name: Box::new(name),
             token: class_token,
             var_decls,
@@ -110,7 +109,7 @@ impl<'src> Parser<'src> {
                 stmts: vec![],
                 token: compound_start,
             },
-        }))
+        })
     }
 
     // NOTE: The tests treat variable declaration lists differently depending on context, most of
