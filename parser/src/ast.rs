@@ -26,6 +26,7 @@ pub enum Node {
     VarDecl(VarDecl),
     ExprList(ExprList),
     Expr(Expr),
+    InitList(InitList),
     Statement(Statement),
     Id(Id),
 }
@@ -62,6 +63,8 @@ pub enum TypeKind {
     Int,
     String,
     Custom,
+    IntArray,
+    CharArray,
 }
 
 impl TryFrom<Token> for TypeKind {
@@ -90,7 +93,12 @@ pub struct VarDeclList {
 pub struct VarDecl {
     pub ty: Box<Type>,
     pub name: Box<Id>,
-    pub init: Option<Box<Expr>>, // Initializer expression
+    pub init: Option<Box<Node>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InitList {
+    pub items: Vec<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -233,6 +241,10 @@ pub enum Expr {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
+    ArrayRef {
+        object: Box<Expr>,
+        idx: Box<Expr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -258,6 +270,7 @@ impl NodeToken for Node {
                 MethodDecl::Main(decl) => decl.token,
                 MethodDecl::Regular(decl) => decl.token,
             },
+            Node::InitList(node) => node.items[0].token(),
             Node::VarDeclList(node) => node.decls[0].token(),
             Node::VarDecl(node) => node.ty.token,
             Node::ExprList(exprs) => exprs.token(),
@@ -271,6 +284,12 @@ impl NodeToken for Node {
 impl NodeToken for VarDecl {
     fn token(&self) -> Token {
         self.name.0
+    }
+}
+
+impl NodeToken for InitList {
+    fn token(&self) -> Token {
+        self.items[0].token()
     }
 }
 
@@ -296,6 +315,7 @@ impl NodeToken for Expr {
             Expr::FieldAccess { object, .. } => object.token(),
             Expr::MethodCall { object, .. } => object.token(),
             Expr::Assignment { lhs, .. } => lhs.token(),
+            Expr::ArrayRef { object, .. } => object.token(),
         }
     }
 }
@@ -325,6 +345,7 @@ impl<'src> Show<'src> for Node {
             Node::ClassDecl(class_decl) => class_decl.show(input, indent),
             Node::VarDecl(var_decl) => var_decl.show(input, indent),
             Node::VarDeclList(var_decl) => var_decl.show(input, indent),
+            Node::InitList(init_list) => init_list.show(input, indent),
             Node::MethodDecl(method_decl) => match method_decl {
                 MethodDecl::Main(main) => main.show(input, indent + Self::TAB),
                 MethodDecl::Regular(method) => method.show(input, indent + Self::TAB),
@@ -556,12 +577,10 @@ impl<'src> Show<'src> for Type {
             "{}Type: {} {}\n",
             Self::indent(indent),
             match &self.ty {
-                TypeKind::Void => "void".to_string(),
-                TypeKind::Int => "int".to_string(),
-                TypeKind::Char => "char".to_string(),
-                TypeKind::Boolean => "boolean".to_string(),
-                TypeKind::String => "String".to_string(),
+                TypeKind::IntArray => "int[]".to_string(),
+                TypeKind::CharArray => "char[]".to_string(),
                 TypeKind::Custom => format!("ID(name={})", self.token.value(input).to_string()),
+                _ => self.token.value(input).to_string(),
             },
             self.token.formatted_pos()
         )
@@ -680,6 +699,15 @@ impl<'src> Show<'src> for Expr {
                     rhs.show(input, indent + Self::TAB)
                 )
             }
+            Expr::ArrayRef { object, idx } => {
+                format!(
+                    "{}ArrayRef: {}\n{}{}",
+                    Self::indent(indent),
+                    object.token().formatted_pos(),
+                    object.show(input, indent + Self::TAB),
+                    idx.show(input, indent + Self::TAB)
+                )
+            }
         }
     }
 }
@@ -708,6 +736,20 @@ impl<'src> Show<'src> for VarDeclList {
             .iter()
             .map(|decl| decl.show(input, indent))
             .collect()
+    }
+}
+
+impl<'src> Show<'src> for InitList {
+    fn show(&self, input: &'src str, indent: usize) -> String {
+        format!(
+            "{}InitList: {}\n{}",
+            Self::indent(indent),
+            self.token().formatted_pos(),
+            self.items
+                .iter()
+                .map(|item| item.show(input, indent + Self::TAB))
+                .collect::<String>()
+        )
     }
 }
 

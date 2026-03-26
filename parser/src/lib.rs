@@ -1,9 +1,9 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    Assert, Block, Expr, ExprList, For, Id, MainMethodDecl, MethodDecl, Node, NodeErr, NodeResult,
-    ParseResult, Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl, VarDeclList,
-    While,
+    Assert, Block, Expr, ExprList, For, Id, InitList, MainMethodDecl, MethodDecl, Node, NodeErr,
+    NodeResult, ParseResult, Print, RegularMethodDecl, Return, Statement, Type, TypeKind, VarDecl,
+    VarDeclList, While,
 };
 
 pub mod ast;
@@ -120,6 +120,7 @@ impl<'src> Parser<'src> {
         let mut decls = Vec::new();
         // Parse type
         let ty = self.type_specifier().ok_or(NodeErr::Eof)??;
+        println!("{ty:?}");
 
         while let Ok(var_decl) = self.var_decl(ty) {
             decls.push(var_decl);
@@ -130,6 +131,8 @@ impl<'src> Parser<'src> {
 
             break;
         }
+
+        println!("{decls:?}");
 
         // Parse ";"
         advance!(self, &[TokenKind::Semicolon])?;
@@ -151,7 +154,29 @@ impl<'src> Parser<'src> {
 
         // Optional initializer expression
         let init = if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
-            Some(Box::new(self.expr()?))
+            // Initializer list
+            if self.advance_if(&[TokenKind::LeftBrace]).is_some() {
+                let mut items = Vec::new();
+
+                loop {
+                    items.push(self.expr()?);
+
+                    if self.advance_if(&[TokenKind::Comma]).is_some() {
+                        // support trailing comma
+                        if self.advance_if(&[TokenKind::RightBrace]).is_some() {
+                            break Some(Box::new(Node::InitList(InitList { items })));
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        advance!(self, &[TokenKind::RightBrace])?;
+                        break Some(Box::new(Node::InitList(InitList { items })));
+                    }
+                }
+            } else {
+                // Regular expression
+                Some(Box::new(Node::Expr(self.expr()?)))
+            }
         } else {
             None
         };
@@ -296,11 +321,14 @@ impl<'src> Parser<'src> {
         Ok(left)
     }
 
+    // TODO: this is currently parsing more than primary expressions, rename ir or refactor out
     /// Parses primary expressions, which are either literals or of the form '(' <expr> ')'
     fn primary_expr(&mut self) -> ParseResult<Expr> {
         let mut expr = self.primary_expr_without_field_access()?;
 
-        // Handle field access/method call expressions
+        // TODO: cleanup postfix operator parsing
+
+        // postfix operators
         while let Some(_dot_token) = self.advance_if(&[TokenKind::Dot]) {
             // Expect an identifier after the dot
             let field_token = advance!(self, &[TokenKind::Id])?;
@@ -320,6 +348,17 @@ impl<'src> Parser<'src> {
                     object: Box::new(expr),
                     field: field,
                 };
+            }
+        }
+
+        if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
+            let idx = self.expr()?;
+
+            advance!(self, &[TokenKind::RightBracket])?;
+
+            expr = Expr::ArrayRef {
+                object: Box::new(expr),
+                idx: Box::new(idx),
             }
         }
 
@@ -815,6 +854,40 @@ impl<'src> Parser<'src> {
     fn type_specifier(&mut self) -> Option<ParseResult<Type>> {
         if let Some(token) = self.advance_if(&TYPE_SPECIFIERS) {
             match TypeKind::try_from(token) {
+                Ok(TypeKind::Int) => {
+                    if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
+                        match advance!(self, &[TokenKind::RightBracket]) {
+                            Ok(_) => (),
+                            Err(e) => return Some(Err(e)),
+                        };
+                        Some(Ok(Type {
+                            ty: TypeKind::IntArray,
+                            token,
+                        }))
+                    } else {
+                        Some(Ok(Type {
+                            ty: TypeKind::Int,
+                            token,
+                        }))
+                    }
+                }
+                Ok(TypeKind::Char) => {
+                    if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
+                        match advance!(self, &[TokenKind::RightBracket]) {
+                            Ok(_) => (),
+                            Err(e) => return Some(Err(e)),
+                        };
+                        Some(Ok(Type {
+                            ty: TypeKind::CharArray,
+                            token,
+                        }))
+                    } else {
+                        Some(Ok(Type {
+                            ty: TypeKind::Int,
+                            token,
+                        }))
+                    }
+                }
                 Ok(ty) => Some(Ok(Type { ty, token })),
                 Err(e) => Some(Err(e)),
             }
