@@ -228,28 +228,39 @@ impl<'src> Parser<'src> {
         }
     }
 
+    fn peek_n_is<C>(&self, n: usize, cond: &mut C) -> bool
+    where
+        C: FnMut(&Token) -> bool,
+    {
+        let idx = self.idx + n - 1;
+        if idx != self.tokens.len() {
+            if let Ok(token) = self.tokens[idx] {
+                (cond)(&token)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     fn args(&mut self) -> ParseResult<ExprList> {
         let mut args = Vec::new();
 
         // Save args' first token
         let token = self.peek().expect("Expected args, got nothing.")?;
 
-        // TODO: remove use of `expr_try` here so we can delete the method since it's sort of hacky
-        // and not a good way to parse things. We can instead know whether an expression is present
-        // by looking for ',' or ')'
-        while let Some(expr) = self.expr_try() {
-            args.push(expr);
+        loop {
+            if self.peek_n_is(1, &mut |token: &Token| token.kind == TokenKind::RightParen) {
+                break;
+            }
+            args.push(self.expr()?);
             if self.advance_if(&[TokenKind::Comma]).is_none() {
                 break;
             }
         }
 
         Ok(ExprList { exprs: args, token })
-    }
-
-    fn expr_try(&mut self) -> Option<Expr> {
-        // NOTE: this is sort of hacky, I guess
-        self.parse_expr(0).ok()
     }
 
     fn expr(&mut self) -> ParseResult<Expr> {
