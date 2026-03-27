@@ -228,26 +228,15 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn peek_n_is<C>(&self, n: usize, cond: &mut C) -> Option<TokenResult>
-    where
-        C: FnMut(&Token) -> bool,
-    {
-        if let Some(Ok(token)) = self.peek_n(n) {
-            if (cond)(&token) {
-                Some(Ok(token))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
     fn args(&mut self) -> ParseResult<ExprList> {
         let mut args = Vec::new();
 
-        let token = self.peek().unwrap()?;
+        // Save args' first token
+        let token = self.peek().expect("Expected args, got nothing.")?;
 
+        // TODO: remove use of `expr_try` here so we can delete the method since it's sort of hacky
+        // and not a good way to parse things. We can instead know whether an expression is present
+        // by looking for ',' or ')'
         while let Some(expr) = self.expr_try() {
             args.push(expr);
             if self.advance_if(&[TokenKind::Comma]).is_none() {
@@ -596,9 +585,13 @@ impl<'src> Parser<'src> {
                 TokenKind::Return => {
                     let return_token = advance!(self, &[TokenKind::Return])?;
 
-                    let expr = self.expr_try();
-
-                    advance!(self, &[TokenKind::Semicolon])?;
+                    let expr = if self.advance_if(&[TokenKind::Semicolon]).is_none() {
+                        let expr = Some(self.expr()?);
+                        advance!(self, &[TokenKind::Semicolon])?;
+                        expr
+                    } else {
+                        None
+                    };
 
                     Ok(Statement::Return(Return {
                         token: return_token,
@@ -658,6 +651,7 @@ impl<'src> Parser<'src> {
 
         advance!(self, &[TokenKind::LeftParen])?;
 
+        // Figure out whether it's an expression or a declaration
         let init = if self
             .peek()
             .is_some_and(|result| result.is_ok_and(|tok| TYPE_SPECIFIERS.contains(&tok.kind)))
@@ -676,12 +670,21 @@ impl<'src> Parser<'src> {
             expr
         };
 
-        let cond = self.expr_try();
-        advance!(self, &[TokenKind::Semicolon])?;
+        let cond = if self.advance_if(&[TokenKind::Semicolon]).is_none() {
+            let cond = Some(self.expr()?);
+            advance!(self, &[TokenKind::Semicolon])?;
+            cond
+        } else {
+            None
+        };
 
-        let tick = self.expr_try();
-
-        advance!(self, &[TokenKind::RightParen])?;
+        let tick = if self.advance_if(&[TokenKind::RightParen]).is_none() {
+            let tick = Some(self.expr()?);
+            advance!(self, &[TokenKind::RightParen])?;
+            tick
+        } else {
+            None
+        };
 
         let block = self.stmt()?;
 

@@ -230,15 +230,15 @@ pub enum Expr {
         /// Binary expression's first token (can be either `left.token()` or an opening paren)
         token: Token,
         op: Token,
-        // TODO: Should this be a `Node` or can it be `Expr`?
         left: Box<Expr>,
         right: Box<Expr>,
     },
     FieldAccess {
-        // TODO: Should this be a `Node` or can it be `Expr`?
         object: Box<Expr>,
         field: Id,
     },
+    // TODO: should args be optional? In function calls without args it still contains a new
+    // ExprList
     MethodCall {
         object: Box<Expr>,
         name: Id,
