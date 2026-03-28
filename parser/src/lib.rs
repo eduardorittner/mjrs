@@ -406,6 +406,7 @@ impl<'src> Parser<'src> {
                     Ok(Expr::Identifier(Id(token)))
                 }
                 TokenKind::New => {
+                    // TODO refactor into self.new_expr() function
                     self.idx += 1;
 
                     if let Some(Ok(id_token)) = self.identifier() {
@@ -459,6 +460,7 @@ impl<'src> Parser<'src> {
 
                     Ok(expr)
                 }
+                // TODO refactor self.peek() at the start of the method to advance!() and turn this arm into unreachable!()
                 _ => Err(NodeErr::Unexpected {
                     expected: vec![
                         TokenKind::True,
