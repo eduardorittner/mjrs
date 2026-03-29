@@ -1,8 +1,8 @@
 use lexer::token::{Token, TokenKind, TokenResult};
 
 use crate::ast::{
-    Assert, Block, ClassDecl, Expr, ExprList, For, Id, InitList, MainMethodDecl, MethodDecl, Node,
-    NodeErr, NodeResult, ParamList, ParseResult, Print, Program, RegularMethodDecl, Return,
+    Assert, Block, ClassDecl, Expr, ExprList, For, Id, If, InitList, MainMethodDecl, MethodDecl,
+    Node, NodeErr, NodeResult, ParamList, ParseResult, Print, Program, RegularMethodDecl, Return,
     Statement, Type, TypeKind, VarDecl, VarDeclList, While,
 };
 
@@ -118,7 +118,7 @@ impl<'src> Parser<'src> {
         while let Ok(var_decl) = self.var_decl(ty) {
             decls.push(var_decl);
 
-            if let Some(_comma) = self.advance_if(&[TokenKind::Comma]) {
+            if self.advance_if(&[TokenKind::Comma]).is_some() {
                 continue;
             }
 
@@ -140,7 +140,7 @@ impl<'src> Parser<'src> {
         let name = Id(name_token);
 
         // Optional initializer expression
-        let init = if let Some(_eq) = self.advance_if(&[TokenKind::Eq]) {
+        let init = if self.advance_if(&[TokenKind::Eq]).is_some() {
             // Initializer list
             if self.advance_if(&[TokenKind::LeftBrace]).is_some() {
                 let mut items = Vec::new();
@@ -330,7 +330,7 @@ impl<'src> Parser<'src> {
         // postfix operators
         while let Some(_dot_token) = self.advance_if(&[TokenKind::Dot]) {
             // Expect an identifier after the dot
-            if let Some(_) = self.advance_if(&[TokenKind::Length]) {
+            if self.advance_if(&[TokenKind::Length]).is_some() {
                 expr = Expr::Length {
                     object: Box::new(expr),
                 };
@@ -409,7 +409,7 @@ impl<'src> Parser<'src> {
                     // TODO refactor into self.new_expr() function
                     self.idx += 1;
 
-                    if let Some(Ok(id_token)) = self.identifier() {
+                    if let Some(id_token) = self.identifier() {
                         advance!(self, &[TokenKind::LeftParen])?;
                         advance!(self, &[TokenKind::RightParen])?;
                         Ok(Expr::New {
@@ -613,10 +613,10 @@ impl<'src> Parser<'src> {
                 }
                 TokenKind::This => self.expr_stmt(),
                 TokenKind::Assert => self.assert_stmt().map(|ok| Statement::Assert(ok)),
-                TokenKind::If => self.if_stmt(),
-                TokenKind::While => self.while_stmt(),
-                TokenKind::For => self.for_stmt(),
-                TokenKind::LeftBrace => Ok(Statement::Block(self.compound_stmt()?)),
+                TokenKind::If => self.if_stmt().map(|ok| Statement::If(ok)),
+                TokenKind::While => self.while_stmt().map(|ok| Statement::While(ok)),
+                TokenKind::For => self.for_stmt().map(|ok| Statement::For(ok)),
+                TokenKind::LeftBrace => self.compound_stmt().map(|ok| Statement::Block(ok)),
                 tok => panic!("{tok:?}"),
             }
         } else {
@@ -659,7 +659,7 @@ impl<'src> Parser<'src> {
         Ok(Assert { token, cond })
     }
 
-    fn for_stmt(&mut self) -> ParseResult<Statement> {
+    fn for_stmt(&mut self) -> ParseResult<For> {
         let token = advance!(self, &[TokenKind::For])?;
 
         advance!(self, &[TokenKind::LeftParen])?;
@@ -701,16 +701,16 @@ impl<'src> Parser<'src> {
 
         let block = self.stmt()?;
 
-        Ok(Statement::For(For {
+        Ok(For {
             token,
             init: Box::new(init),
             cond,
             tick,
             block: Box::new(block),
-        }))
+        })
     }
 
-    fn while_stmt(&mut self) -> ParseResult<Statement> {
+    fn while_stmt(&mut self) -> ParseResult<While> {
         let while_token = advance!(self, &[TokenKind::While])?;
 
         advance!(self, &[TokenKind::LeftParen])?;
@@ -719,15 +719,15 @@ impl<'src> Parser<'src> {
 
         let block = self.stmt()?;
 
-        Ok(Statement::While(While {
+        Ok(While {
             token: while_token,
             cond,
             block: Box::new(block),
-        }))
+        })
     }
 
     // TODO: make this return `If`
-    fn if_stmt(&mut self) -> ParseResult<Statement> {
+    fn if_stmt(&mut self) -> ParseResult<If> {
         let if_token = advance!(self, &[TokenKind::If])?;
 
         advance!(self, &[TokenKind::LeftParen])?;
@@ -742,12 +742,12 @@ impl<'src> Parser<'src> {
             None
         };
 
-        Ok(Statement::If(ast::If {
+        Ok(ast::If {
             token: if_token,
             cond,
             then: Box::new(then),
             elze: elze.map(|stmt| Box::new(stmt)),
-        }))
+        })
     }
 
     fn expr_stmt(&mut self) -> ParseResult<Statement> {
@@ -758,12 +758,8 @@ impl<'src> Parser<'src> {
         Ok(stmt)
     }
 
-    fn identifier(&mut self) -> Option<ParseResult<Id>> {
-        if let Some(token) = self.advance_if(&[TokenKind::Id]) {
-            Some(Ok(Id(token)))
-        } else {
-            None
-        }
+    fn identifier(&mut self) -> Option<Id> {
+        self.advance_if(&[TokenKind::Id]).map(|ok| Id(ok))
     }
 
     fn type_specifier(&mut self) -> Option<ParseResult<Type>> {
@@ -838,3 +834,31 @@ pub const TYPE_SPECIFIERS: [TokenKind; 6] = [
     TokenKind::String,
     TokenKind::Id,
 ];
+
+#[cfg(test)]
+mod tests {
+    use lexer::{
+        lexer::Lexer,
+        token::{Coords, Token, TokenKind},
+    };
+
+    use crate::Parser;
+
+    #[test]
+    fn identifier() {
+        let source = "var_name";
+        let tokens = Lexer::lex(source);
+        let mut parser = Parser::new(&tokens);
+
+        let ident = parser.identifier().unwrap();
+
+        assert_eq!(
+            Token {
+                kind: TokenKind::Id,
+                range: (0, source.len()),
+                coords: Coords { line: 1, column: 1 }
+            },
+            ident.0
+        );
+    }
+}
