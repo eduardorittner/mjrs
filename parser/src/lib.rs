@@ -766,6 +766,10 @@ impl<'src> Parser<'src> {
         if let Some(token) = self.advance_if(&TYPE_SPECIFIERS) {
             match TypeKind::try_from(token) {
                 // TODO: there's duplication in the logic of parsing array types, clean this up
+                // make an `array_sufix` function which returns `ParseResult<bool>`
+                // When there is a valid array suffix, it's Ok(true)
+                // When there is an opening bracket but no closing bracket: Err(e),
+                // When there is no opening bracket, Ok(false)
                 Ok(TypeKind::Int) => {
                     if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
                         match advance!(self, &[TokenKind::RightBracket]) {
@@ -822,6 +826,15 @@ impl<'src> Parser<'src> {
             }
         } else {
             None
+        }
+    }
+
+    fn array_suffix(&mut self) -> ParseResult<bool> {
+        if self.advance_if(&[TokenKind::LeftBracket]).is_some() {
+            advance!(self, &[TokenKind::RightBracket])?;
+            Ok(true)
+        } else {
+            Ok(false)
         }
     }
 }
