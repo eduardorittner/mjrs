@@ -53,6 +53,8 @@ impl<'src> Parser<'src> {
         let name_token = advance!(self, &[TokenKind::Id])?;
         let name = Id(name_token);
 
+        // TODO: parse optional  "extends class_name" here
+
         // Parse "{"
         let compound_start = advance!(self, &[TokenKind::LeftBrace])?;
 
